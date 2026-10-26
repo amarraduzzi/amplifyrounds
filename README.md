@@ -65,3 +65,7 @@ New tab "Overzicht": counts per status (tap to filter the list), follow-ups due,
 ## Update 8: nieuwe onderste menubalk
 
 No SQL needed. The bottom tab bar on phones now has icons, more space, a highlighted active tab and a rounded floating look. The route counter on "Kaart" only shows when stops are selected.
+
+## Update 9: computerweergave
+
+No SQL needed. On a computer the list area is now wide (the map is a narrower panel on the right, about 30% of the screen), the tabs have icons above their names and fit without being cut off, and the content is centred with a maximum width.
