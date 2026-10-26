@@ -42,3 +42,7 @@ Run `schema-update-2.sql` in Supabase BEFORE uploading index.html. Visit log wit
 ## Update 3: lead score uitleg
 
 No SQL needed. Tap the score number next to a restaurant to see why; "Réglages du score" lets you change the weights (stored per device).
+
+## Update 4: dagadvies (tab "Aujourd'hui / Vandaag")
+
+No SQL needed. Pick available hours (about 2 stops per hour). Advice = due follow-ups first, then best-scoring restaurants that are close together and not visited in the last 7 days, each with a short pitch tip. "In mijn ronde zetten" fills the route and calculates it.
