@@ -20,3 +20,7 @@ Route planner for visiting restaurants in Rabat. Static web app (Leaflet + OpenS
 CSV columns: `name, address, district, phone, lat, lng, status` (status: new, appt, demo, client, lost).
 
 The Supabase key in `index.html` is a publishable key. Never put the secret/service_role key in this repo.
+
+## Taal / Langue
+
+The app has an FR | NL switch in the header (default: Dutch). The choice is remembered per device.
