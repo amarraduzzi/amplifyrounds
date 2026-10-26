@@ -24,3 +24,8 @@ The Supabase key in `index.html` is a publishable key. Never put the secret/serv
 ## Language / Taal / Langue
 
 The app is available in French and Dutch. Use the FR/NL button in the header; the choice is remembered in the browser. The first time, Dutch browsers get Dutch, everything else French. WhatsApp follow-up messages to restaurants are always sent in French.
+
+## Search
+
+- The search box in the list filters on name, address, district, phone number and status (accents do not matter).
+- "Chercher en ligne" / "Online zoeken" searches OpenStreetMap for restaurants in Rabat, Salé and Témara and adds the chosen ones to the list with one click. Results already in the list are marked.
