@@ -56,3 +56,8 @@ No SQL needed. Tabs: Vandaag, Restaurants, Cijfers, Kaart (map + route). On phon
 No SQL needed. Upload `index.html` and `README.md`, then import `notion-import.csv` via "Importeren" (119 restaurants uit Amars Notion-lijst; Etoile du chef en Lina gluten free zijn overgeslagen omdat ze niet bestaan).
 The CSV import now also reads these optional columns: `website_status` (yes / no / unknown), `next_step`, `next_contact` (YYYY-MM-DD) and `last_visit` (YYYY-MM-DD).
 The import has no coordinates: the app looks them up by name and district (about 1 per second, so ~2 minutes). Check the positions afterwards; wrong ones can be fixed with "Op de kaart plaatsen".
+
+## Update 7: bijwerken bij import en tabblad Overzicht
+
+No SQL needed. The CSV import has a checkbox "Restaurants die al in de lijst staan bijwerken" (on by default): for restaurants already in the list (same name) it fills in empty fields only (status if still "te bezoeken", next step, follow-up date, last visit, website, district). Nothing already filled in is overwritten and clients are never changed.
+New tab "Overzicht": counts per status (tap to filter the list), follow-ups due, and the best-scoring restaurants not yet visited.

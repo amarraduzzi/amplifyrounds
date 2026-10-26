@@ -148,11 +148,12 @@ header h1{font-size:26px}dialog h2{font-size:24px}
       <button id="btnLogout" hidden>Sortir</button>
     </header>
     <div class="tabs" role="tablist">
-      <button role="tab" id="tabToday" aria-selected="true">Aujourd’hui</button><button role="tab" id="tabList" aria-selected="false">Restaurants</button>
+      <button role="tab" id="tabToday" aria-selected="true">Aujourd’hui</button><button role="tab" id="tabOverview" aria-selected="false">Aperçu</button><button role="tab" id="tabList" aria-selected="false">Restaurants</button>
       <button role="tab" id="tabStats" aria-selected="false">Chiffres</button><button role="tab" id="tabRoute" aria-selected="false">Carte<span class="badge" id="badge">0</span></button>
     </div>
 
     <section class="pane" id="paneToday"><div id="today"></div></section>
+<section class="pane" id="paneOverview" hidden><div id="overview"></div></section>
 <section class="pane" id="paneStats" hidden><div id="stats"></div></section>
 <section class="pane" id="paneList" hidden>
       <div class="online"><button class="btn primary" id="btnOnline" type="button">Chercher en ligne</button><button class="btn" id="btnW" type="button">Réglages du score</button></div>
@@ -264,6 +265,7 @@ header h1{font-size:26px}dialog h2{font-size:24px}
     <p style="margin:0;color:var(--mute);font-size:14px">Fichier CSV avec les colonnes : name, address, district, phone, lat, lng, status. Les lignes sans coordonnées sont localisées via leur adresse (environ 1 par seconde).</p>
     <input type="file" id="csvFile" accept=".csv,text/csv">
     <label>ou collez le contenu<textarea id="csvText" rows="6" placeholder="name;address;district;phone&#10;Louai's;Rue Oued Fès, Agdal;Agdal;0612345678"></textarea></label>
+    <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="csvUpdate" checked> Mettre à jour les restaurants déjà dans la liste (remplit seulement les champs vides)</label>
     <div class="foot">
       <button type="button" class="btn" id="btnImportCancel">Annuler</button>
       <button class="btn primary" value="ok">Importer</button>
@@ -633,20 +635,35 @@ const extra = r => ({ g_rating: nz(get(r, 'rating')), g_reviews: nz(get(r, 'revi
     const st = get(r, 'status').toLowerCase();
     return { id: uid(), name: get(r, 'name'), address: get(r, 'address') || null, district: get(r, 'district') || null, phone: get(r, 'phone') || null, lat, lng, status: STATUS[st] ? st : 'new', next_step: get(r, 'next_step') || null, next_contact: /^\d{4}-\d{2}-\d{2}$/.test(get(r, 'next_contact')) ? get(r, 'next_contact') : null, last_visit_at: /^\d{4}-\d{2}-\d{2}$/.test(get(r, 'last_visit')) ? get(r, 'last_visit') + 'T12:00:00Z' : null, ...extra(r) };
   }).filter(r => r.name);
+let upd = 0;
+if ($('#csvUpdate').checked) {
+  for (const r of allItems) {
+    const m = rows.filter(x => norm(x.name) === norm(r.name)); if (m.length !== 1) continue;
+    const x = m[0], pt = {};
+    if (x.status === 'new' && r.status !== 'new') pt.status = r.status;
+    if (!x.next_step && r.next_step) pt.next_step = r.next_step;
+    if (!x.next_contact && r.next_contact) pt.next_contact = r.next_contact;
+    if (!x.last_visit_at && r.last_visit_at) pt.last_visit_at = r.last_visit_at;
+    if ((!x.website_status || x.website_status === 'unknown') && r.website_status !== 'unknown') pt.website_status = r.website_status;
+    if (!x.district && r.district) pt.district = r.district;
+    if (Object.keys(pt).length) { try { await store.save({ id: x.id, name: x.name, ...pt }); upd++; } catch {} }
+  }
+  if (upd) await reload();
+}
 const seen = new Set(rows.map(x => norm(x.name))); let skipped = 0;
 const items = allItems.filter(r => {
   const k = norm(r.name);
   const dup = seen.has(k) || rows.some(x => x.lat != null && r.lat != null && haversine(x, r) < 40 && (norm(x.name).includes(k) || k.includes(norm(x.name))));
   if (dup) { skipped++; return false; } seen.add(k); return true;
 });
-if (!items.length) return toast(`0 importés, ${skipped} déjà dans la liste.`, 5000);
+if (!items.length) return toast(`0 importés, ${skipped} déjà dans la liste${upd ? ', ' + upd + ' mis à jour' : ''}.`, 6000);
   const todo = items.filter(r => r.lat == null && (r.address || r.district));
   for (let i = 0; i < todo.length; i++) {
     toast(`Localisation ${i + 1}/${todo.length}…`, 2000);
     try { const p = await geocode([todo[i].address, todo[i].district, todo[i].name].filter(Boolean).join(', ')); if (p) { todo[i].lat = p.lat; todo[i].lng = p.lng; } } catch {}
     await sleep(1100);
   }
-  try { await store.saveMany(items); await reload(); const miss = items.filter(r => r.lat == null).length; toast(`${items.length} importés${skipped ? ', ' + skipped + ' déjà dans la liste' : ''}${miss ? ', ' + miss + ' sans position' : ''}.`, 6000); $('#csvText').value = ''; $('#csvFile').value = ''; }
+  try { await store.saveMany(items); await reload(); const miss = items.filter(r => r.lat == null).length; toast(`${items.length} importés${upd ? ', ' + upd + ' mis à jour' : ''}${skipped ? ', ' + skipped + ' déjà dans la liste' : ''}${miss ? ', ' + miss + ' sans position' : ''}.`, 6000); $('#csvText').value = ''; $('#csvFile').value = ''; }
   catch (err) { toast('Erreur : ' + err.message, 6000); }
 });
 
@@ -718,13 +735,14 @@ window.wazeTo = id => { const r = rows.find(x => x.id === id); if (r) window.ope
 
 // ====== Tabs & filters ======
 function showTab(w) {
-  [['today', '#paneToday', '#tabToday'], ['list', '#paneList', '#tabList'], ['route', '#paneRoute', '#tabRoute'], ['stats', '#paneStats', '#tabStats']].forEach(([k, pn, t]) => { $(pn).hidden = k !== w; $(t).setAttribute('aria-selected', k === w); });
+  [['today', '#paneToday', '#tabToday'], ['list', '#paneList', '#tabList'], ['route', '#paneRoute', '#tabRoute'], ['stats', '#paneStats', '#tabStats'], ['overview', '#paneOverview', '#tabOverview']].forEach(([k, pn, t]) => { $(pn).hidden = k !== w; $(t).setAttribute('aria-selected', k === w); });
   document.body.dataset.tab = w;
   if (w === 'route') map.invalidateSize();
   if (w === 'today') renderToday();
   if (w === 'stats') renderStats();
+  if (w === 'overview') renderOverview();
 }
-$('#tabToday').onclick = () => showTab('today'); $('#tabList').onclick = () => showTab('list'); $('#tabRoute').onclick = () => showTab('route'); $('#tabStats').onclick = () => showTab('stats');
+$('#tabToday').onclick = () => showTab('today'); $('#tabList').onclick = () => showTab('list'); $('#tabRoute').onclick = () => showTab('route'); $('#tabStats').onclick = () => showTab('stats'); $('#tabOverview').onclick = () => showTab('overview');
 ['#q', '#fStatus', '#fDistrict'].forEach(s => $(s).addEventListener('input', renderList));
 
 // ====== Boot ======
@@ -883,6 +901,19 @@ $('#today').addEventListener('click', e => {
 
 // ====== Chiffres ======
 store.allVisits = async () => sb ? ((await sb.from('visits').select('*').order('created_at', { ascending: false }).limit(2000)).data || []) : ls('at_visits', '[]');
+function renderOverview() {
+  const el = $('#overview'); if (!el) return;
+  const today = new Date().toISOString().slice(0, 10), live = rows.filter(r => r.status !== 'client' && r.status !== 'lost');
+  const tiles = Object.keys(STATUS).map(k => `<button type="button" class="kpi" data-st="${k}" style="text-align:left;cursor:pointer"><b>${rows.filter(r => r.status === k).length}</b>${esc(STATUS[k].label)}</button>`).join('');
+  const due = live.filter(r => r.next_contact && r.next_contact <= today).sort((a, b) => a.next_contact.localeCompare(b.next_contact)).slice(0, 12);
+  const best = live.filter(r => !r.last_visit_at).map(r => ({ r, n: leadScore(r) ?? 0 })).sort((a, b) => b.n - a.n).slice(0, 12);
+  const li = (r, t) => `<li><button type="button" class="btn" data-go="${esc(r.name)}" style="width:100%;text-align:left"><b>${esc(r.name)}</b> <span style="color:var(--mute)">${esc(r.district || '')}</span><br><span style="font-size:13px">${t}</span></button></li>`;
+  el.innerHTML = `<div class="kpis" style="flex-wrap:wrap">${tiles}</div>
+<h3>Relances à faire</h3>${due.length ? `<ul class="stops" style="list-style:none;padding:0">${due.map(r => li(r, (r.next_contact < today ? 'En retard · ' : '') + fmtD(r.next_contact) + (r.next_step ? ' · ' + esc(r.next_step) : ''))).join('')}</ul>` : '<p class="empty">Aucune relance en attente.</p>'}
+<h3>Meilleures pistes pas encore visitées</h3>${best.length ? `<ul class="stops" style="list-style:none;padding:0">${best.map(({ r, n }) => li(r, 'Score ' + n)).join('')}</ul>` : '<p class="empty">Rien à afficher.</p>'}`;
+  el.querySelectorAll('[data-st]').forEach(b => b.onclick = () => { $('#fStatus').value = b.dataset.st; $('#q').value = ''; showTab('list'); renderList(); });
+  el.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { $('#fStatus').value = ''; $('#q').value = b.dataset.go; showTab('list'); renderList(); });
+}
 async function renderStats() {
   const el = $('#stats'); let vs = []; try { vs = await store.allVisits(); } catch {}
   const bars = (items, max) => items.map(([t, n, c]) => `<div class="brow"><span>${esc(t)}${c ? '' : ''}</span><div class="bar"><i style="width:${max ? Math.round(n / max * 100) : 0}%"></i></div><b>${n}</b></div>`).join('');
@@ -947,6 +978,7 @@ const FRAG = [
 [/^Localisation (\d+)\/(\d+)…/,'Locatie zoeken $1/$2…'],[/^Modifier (.+)$/,'Bewerk $1'],[/^Ajouter (.+) à la tournée$/,'$1 aan ronde toevoegen'],
 [/^À visiter(?= ·|$)/,'Te bezoeken'],[/^Rendez-vous(?= ·|$)/,'Afspraak'],[/^Démo faite(?= ·|$)/,'Demo gedaan'],[/^Client(?= ·|$)/,'Klant'],[/^Pas intéressé(?= ·|$)/,'Niet geïnteresseerd']
 ];
+Object.assign(D, {'Aperçu':'Overzicht','Relances à faire':'Opvolgingen','Meilleures pistes pas encore visitées':'Beste kansen, nog niet bezocht','Aucune relance en attente.':'Geen opvolgingen open.','Rien à afficher.':'Niets te tonen.','Mettre à jour les restaurants déjà dans la liste (remplit seulement les champs vides)':'Restaurants die al in de lijst staan bijwerken (vult alleen lege velden in)'});
 Object.assign(D, {'Carte':'Kaart','Chiffres':'Cijfers','Visités':'Bezocht','Visites (cette semaine)':'Bezoeken (deze week)','Entonnoir':'Trechter','Visites par semaine':'Bezoeken per week','Par personne (30 jours)':'Per persoon (30 dagen)','Quartiers':'Wijken','Objections':'Bezwaren','Intérêt produits':'Interesse per product','Pas encore de visites enregistrées. Les chiffres apparaissent après vos premières visites.':'Nog geen bezoeken vastgelegd. De cijfers verschijnen na jullie eerste bezoeken.','Aujourd’hui':'Vandaag','Combien de temps avez-vous ?':'Hoeveel tijd heb je?','Mettre dans ma tournée':'In mijn ronde zetten','Reprenez où vous en étiez.':'Pak de draad op waar je gebleven was.','Pas de site : proposez Amplify Site (dès 250 DH).':'Geen website: stel Amplify Site voor (vanaf 250 DH).','Beaucoup d’avis, donc du passage : parlez marges et caisse (POS dès 199 DH/mois).':'Veel reviews, dus veel klanten: praat over marges en kassa (POS vanaf 199 DH/maand).','Premier contact : demandez comment ils suivent leurs marges aujourd’hui.':'Eerste contact: vraag hoe ze nu hun marges bijhouden.','Ajoutez des restaurants avec une position (liste, import ou recherche en ligne) pour recevoir un conseil.':'Voeg restaurants met een locatie toe (lijst, import of online zoeken) om advies te krijgen.','Réglages du score':'Score-instellingen','Réinitialiser':'Standaard herstellen','Plus le nombre est grand, plus ce critère compte. Les réglages restent sur cet appareil.':'Hoe groter het getal, hoe zwaarder het criterium telt. De instellingen blijven op dit apparaat.','Réglages réinitialisés.':'Instellingen hersteld.','Pas de site web':'Geen website','A déjà un site web':'Heeft al een website','Avis Google (maximum)':'Google-reviews (maximum)','Bonne note Google':'Goede Google-score','Note Google basse':'Lage Google-score','Café dans un quartier difficile':'Café in een lastige buurt','Rendez-vous ou démo en cours':'Afspraak of demo bezig','Déjà intéressé':'Al geïnteresseerd','En période d’essai':'In proefperiode','Relance à faire':'Opvolging nodig','Base':'Basis','Score':'Score','Fermer':'Sluiten','Résultat':'Uitkomst','Pas là':'Niet aanwezig','Parlé au gérant':'Met manager gesproken','Intéressé':'Geïnteresseerd','RDV pris':'Afspraak gemaakt','Parlé avec':'Gesproken met','Intérêt':'Interesse','Objection':'Bezwaar','Prix':'Prijs','Déjà équipé':'Al uitgerust','Pas le temps':'Geen tijd','Pas le décideur':'Niet de beslisser','Autre':'Anders','Demain':'Morgen','+3 jours':'+3 dagen','+1 semaine':'+1 week','Visité':'Bezocht','Essai en cours':'Proefperiode','À relancer':'Opvolgen','Pas encore visité':'Nog niet bezocht','Prénom, rôle':'Voornaam, functie','Type':'Type','Site web':'Website','Inconnu':'Onbekend','Pas de site':'Geen website','A un site':'Heeft website','Note Google':'Google-score','Nombre d’avis':'Aantal reviews','Environnement':'Omgeving','Quartier agréable':'Fijne buurt','Moyen':'Matig','Quartier difficile':'Lastige buurt','Pâtisserie':'Patisserie','Client':'Klant','Chercher en ligne':'Online zoeken','Recherche en ligne':'Online zoeken','Nom du restaurant':'Naam restaurant','Tous les restaurants de la zone':'Alle restaurants in de regio','Fermer':'Sluiten','Ajouter':'Toevoegen','Déjà dans la liste':'Staat al in de lijst','Tout ajouter':'Alles toevoegen','Ajouté.':'Toegevoegd.','Aucun résultat en ligne.':'Niets gevonden.','Chargement des restaurants…':'Restaurants laden…','Service indisponible, réessayez.':'Service niet beschikbaar, probeer het later opnieuw.'});
 FRAG.push([/(\d+) visités · (\d+) positifs/,'$1 bezocht · $2 positief'],[/(\d+) à relancer/,'$1 opvolgen'],[/(\d+) pas encore visités/,'$1 nog niet bezocht'],[/(\d+) visites cette semaine/,'$1 bezoeken deze week'],[/^Relance prévue le /,'Opvolging gepland op '],[/ \(en retard\)/,' (te laat)'],[/ · pas de site/,' · geen website'],[/ · (\d+) avis/,' · $1 reviews'],[/ · jamais visité/,' · nog nooit bezocht'],[/(\d+) avis Google/,'$1 Google-reviews'],[/^À compléter : /,'Nog aan te vullen: '],[/Site web inconnu/,'Website onbekend'],[/Avis Google manquants/,'Google-reviews ontbreken'],[/Environnement non renseigné/,'Omgeving niet ingevuld'],[/ · visité /,' · bezocht '],[/^Visité(?= ·|$)/,'Bezocht'],[/^Intéressé(?= ·|$)/,'Geïnteresseerd'],[/^Essai en cours(?= ·|$)/,'Proefperiode'],[/— Pas là/,'— Niet aanwezig'],[/— Parlé au gérant/,'— Met manager gesproken'],[/— Intéressé/,'— Geïnteresseerd'],[/— RDV pris/,'— Afspraak gemaakt'],[/— Pas intéressé/,'— Niet geïnteresseerd'],[/\(sans note\)/,'(geen notitie)'],[/(· |— )par /,'$1door '],[/(\d+) résultats/,'$1 resultaten'],[/(\d+) nouveaux/,'$1 nieuw'],[/^(\d+) ajoutés\./,'$1 toegevoegd.'],[/^(\d+) restaurants \?$/,'$1 restaurants toevoegen?']);
 let lang = localStorage.getItem('at_lang') || 'nl';
