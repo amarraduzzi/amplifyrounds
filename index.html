@@ -224,7 +224,7 @@ header h1{font-size:26px}dialog h2{font-size:24px}
 <section class="pane" id="paneOverview" hidden><div id="overview"></div></section>
 <section class="pane" id="paneStats" hidden><div id="stats"></div></section>
 <section class="pane" id="paneList" hidden>
-      <div class="online"><button class="btn primary" id="btnOnline" type="button">Chercher en ligne</button><button class="btn" id="btnW" type="button">Réglages du score</button></div>
+      <div class="online"><button class="btn primary" id="btnOnline" type="button">Chercher en ligne</button><button class="btn" id="btnW" type="button">Réglages du score</button><button class="btn miss" id="lLocate" type="button" hidden></button></div>
 <div class="filters">
         <input id="q" type="search" placeholder="Chercher un restaurant" aria-label="Chercher">
         <select id="fStatus" aria-label="Statut"></select>
@@ -426,6 +426,30 @@ async function geocodeFuzzy(q) {
   const s = await suggestPlaces(q);
   return s[0] ? { lat: s[0].lat, lng: s[0].lng } : null;
 }
+const inBox = p => p && p.lat > 33.85 && p.lat < 34.15 && p.lng > -7.2 && p.lng < -6.6;
+async function geocodeRaw(q) {
+  const city = /t[ée]mara|harhoura|sal[ée]/i.test(q) ? '' : ', Rabat';
+  const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ma&viewbox=-7.2,34.15,-6.6,33.85&q=' + encodeURIComponent(q + city + ', Maroc'), { headers: { 'Accept-Language': 'fr' } });
+  const j = await r.json();
+  return j[0] ? { lat: +j[0].lat, lng: +j[0].lon } : null;
+}
+const APPROX_KEY = 'at_approx', posKey = (lat, lng) => (+lat).toFixed(5) + ',' + (+lng).toFixed(5);
+const isApprox = r => r.lat != null && ls(APPROX_KEY, '{}')[r.id] === posKey(r.lat, r.lng);
+const DIST_FALLBACK = { agdal: [33.9916, -6.8555], hassan: [34.0209, -6.8326], 'hay riad': [33.9577, -6.8696], souissi: [33.978, -6.83], oudayas: [34.0316, -6.836], ocean: [34.0227, -6.8387], harhoura: [33.956, -6.987], temara: [33.928, -6.906], sale: [34.0531, -6.7985], marina: [34.029, -6.825] };
+function approxPos(r) { // centre of the district (median of already placed restaurants, else a fixed point), with a small spread
+  const k = norm(r.district || ''), same = rows.filter(x => x.lat != null && x.lng != null && norm(x.district || '') === k && !isApprox(x));
+  const med = a => { a = a.slice().sort((x, y) => x - y); return a[Math.floor(a.length / 2)]; };
+  const c = k && same.length >= 3 ? [med(same.map(x => +x.lat)), med(same.map(x => +x.lng))] : (DIST_FALLBACK[k] || [34.0209, -6.8416]);
+  let h = 0; for (const ch of String(r.id)) h = (h * 31 + ch.charCodeAt(0)) | 0;
+  return { lat: c[0] + ((h % 600) / 100000), lng: c[1] + (((h >> 8) % 600) / 100000) };
+}
+async function findPos(r) { // returns exact position or null; tries address, then fuzzy name search, then plain name search
+  const toks = norm(r.name).split(/[^a-z0-9]+/).filter(w => w.length >= 3), d = r.district || '';
+  try { if (r.address) { const p = await geocodeRaw([r.address, d].filter(Boolean).join(', ')); if (inBox(p)) return p; await sleep(1100); } } catch {}
+  try { const s = await suggestPlaces([r.name, d || 'Rabat'].join(' ')); const m = s.find(x => inBox(x) && toks.some(w => norm(x.label).includes(w))); if (m) return { lat: m.lat, lng: m.lng }; } catch {}
+  try { const p = await geocodeRaw([r.name, d].filter(Boolean).join(', ')); if (inBox(p)) return p; await sleep(1100); } catch {}
+  return null;
+}
 let sugTimer = 0, sugList = [];
 
 // ====== Data layer (Supabase or local) ======
@@ -557,6 +581,7 @@ function renderList() {
   const items = filtered().sort((a, b) => (leadScore(b) ?? -1) - (leadScore(a) ?? -1) || a.name.localeCompare(b.name)), today = new Date().toISOString().slice(0, 10);
   if (!rows.length) { $('#list').innerHTML = '<div class="empty">Aucun restaurant pour l’instant. Ajoutez-en un ou importez une liste CSV.</div>'; return; }
   if (!items.length) { $('#list').innerHTML = '<div class="empty">Aucun résultat pour ces filtres.<br><br><button class="btn primary" onclick="openSearch($(\'#q\').value)">Chercher en ligne</button></div>'; return; }
+  { const miss = rows.filter(r => r.lat == null || r.lng == null).length, lb = $('#lLocate'); if (lb && !geoBusy) { lb.hidden = !miss; lb.disabled = false; lb.textContent = 'Chercher les positions manquantes (' + miss + ')'; } }
   $('#list').innerHTML = items.map(r => {
     const noPos = r.lat == null || r.lng == null;
     const due = r.next_contact && r.next_contact <= today;
@@ -564,7 +589,7 @@ function renderList() {
       <span class="dot" style="background:${STATUS[r.status]?.color}" title="${esc(STATUS[r.status]?.label)}"></span>
       <div>
         <button class="name" onclick="focusRow('${r.id}')">${esc(r.name)}</button>${leadScore(r) != null ? `<button class="score ${leadScore(r) >= 70 ? 'hi' : leadScore(r) >= 50 ? 'mid' : ''}" onclick="showWhy('${r.id}')" title="Pourquoi ce score ?">${leadScore(r)}</button>` : ''}
-        <div class="meta">${esc(STATUS[r.status]?.label)}${r.district ? ' · ' + esc(r.district) : ''}${noPos ? ' · sans position' : ''}${r.last_visit_at ? ' · visité ' + fmtD(r.last_visit_at) : ''}</div>
+        <div class="meta">${esc(STATUS[r.status]?.label)}${r.district ? ' · ' + esc(r.district) : ''}${noPos ? ' · sans position' : isApprox(r) ? ' · position approximative' : ''}${r.last_visit_at ? ' · visité ' + fmtD(r.last_visit_at) : ''}</div>
         ${r.next_step ? `<div class="next ${due ? 'due' : ''}">${due ? 'À relancer : ' : ''}${esc(r.next_step)}</div>` : ''}
       </div>
       <div class="acts">
@@ -1021,18 +1046,23 @@ ${missing ? `<button class="btn miss" id="dLocate" type="button">Chercher les po
 ${P.items.length ? `<section class="plan"><div class="summary">${P.items.length} arrêts · ${km(P.dist)} · ≈ ${mins(P.dur)}</div><div class="line"><button class="btn primary" id="btnPlanGo">Mettre dans ma tournée</button><button class="btn" id="dGmaps" type="button">Ouvrir dans Google Maps</button></div></section>` : ''}
 ${stops}`;
 }
-async function locateMissing() {
-  const todo = rows.filter(r => r.lat == null); if (!todo.length) return;
-  geoBusy = true; const b = $('#dLocate'); b.disabled = true; let ok = 0;
+async function locateMissing(b) {
+  const todo = rows.filter(r => r.lat == null || r.lng == null); if (!todo.length || geoBusy) return;
+  geoBusy = true; b = b || $('#dLocate'); if (b) b.disabled = true; let ok = 0, ap = 0; const am = ls(APPROX_KEY, '{}');
   for (let i = 0; i < todo.length; i++) {
-    b.textContent = (i + 1) + '/' + todo.length;
-    try { const p = await geocode([todo[i].address, todo[i].district, todo[i].name].filter(Boolean).join(', ')); if (p) { await store.save({ id: todo[i].id, name: todo[i].name, lat: p.lat, lng: p.lng }); ok++; } } catch {}
-    await sleep(1100);
+    if (b) b.textContent = (i + 1) + '/' + todo.length;
+    let p = null, approx = false;
+    try { p = await findPos(todo[i]); } catch {}
+    if (!p) { p = approxPos(todo[i]); approx = true; }
+    try { await store.save({ id: todo[i].id, name: todo[i].name, lat: p.lat, lng: p.lng }); if (approx) { am[todo[i].id] = posKey(p.lat, p.lng); ap++; } else ok++; } catch {}
+    await sleep(300);
   }
+  localStorage.setItem(APPROX_KEY, JSON.stringify(am));
   geoBusy = false;
   try { await reload(); } catch {}
-  toast(`${ok} positions trouvées, ${todo.length - ok} introuvables.`, 5000);
+  toast(`${ok} positions trouvées, ${ap} approximatives.`, 6000);
 }
+$('#lLocate').onclick = e => locateMissing(e.currentTarget);
 $('#today').addEventListener('click', async e => {
   const t = e.target;
   const n = t.closest('button[data-n]'); if (n) { day.n = +n.dataset.n; saveDay(); return renderToday(); }
@@ -1050,7 +1080,7 @@ $('#today').addEventListener('click', async e => {
     try { const p = await geocodeFuzzy(q); if (!p) return toast('Adresse introuvable. Essayez un quartier ou « Déplacer sur la carte ».', 4500); map.setView([p.lat, p.lng], 14); setStart(p, q); } catch { toast('Service indisponible, réessayez.'); }
     return;
   }
-  if (t.closest('#dLocate')) return locateMissing();
+  if (t.closest('#dLocate')) return locateMissing(t.closest('#dLocate'));
   if (t.closest('#dGmaps')) {
     const o = (lastPlan?.items || []).map(x => x.r); if (!o.length) return;
     const pt = p => p.lat + ',' + p.lng, gp = p => p === start ? pt(p) : gPt(p), loop = $('#loop').checked, dest = loop ? start : o[o.length - 1], via = loop ? o : o.slice(0, -1);
@@ -1205,7 +1235,7 @@ new MutationObserver(ms => ms.forEach(m => {
 })).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTR });
 Object.assign(D, {'Adresse introuvable. Essayez un quartier ou « Déplacer sur la carte ».':'Adres niet gevonden. Probeer een wijk of « Verplaats op de kaart ».'});
 Object.assign(D, {'Point de départ':'Startpunt','Adresse ou quartier':'Adres of wijk','Chercher':'Zoeken','Région':'Regio','Peu importe, le plus proche du départ':'Maakt niet uit, dichtst bij mijn start','Nombre d’arrêts':'Aantal stops','Déplacement':'Verplaatsing','À pied':'Te voet','En voiture':'Met de auto','Seulement nouveaux et fort potentiel':'Alleen nieuwe en hoge potentie','Inclure les relances':'Opvolgingen meenemen','Déplacer sur la carte':'Verplaats op de kaart','Ouvrir dans Google Maps':'Openen in Google Maps','Départ : repère sur la carte (Agdal par défaut)':'Start: pin op de kaart (standaard Agdal)'});
-FRAG.push([/^Départ : (?=.)/,'Start: '],[/^Chercher les positions manquantes \((\d+)\)/,'Ontbrekende posities opzoeken ($1)'],[/(\d+) arrêts · /,'$1 stops · '],[/(\d+) positions trouvées, (\d+) introuvables\./,'$1 posities gevonden, $2 niet gevonden.'],[/Plus de restaurants ne correspondent pas aux filtres/,'Er zijn geen restaurants meer die aan de filters voldoen'],[/ \(certains n’ont pas encore de position\)/,' (sommige hebben nog geen positie)'],[/Essayez une autre région ou désactivez « nouveaux et fort potentiel »\./,'Probeer een andere regio of zet “alleen nieuwe en hoge potentie” uit.'],[/Aucun restaurant ne correspond\. Essayez une autre région, désactivez « nouveaux et fort potentiel »/,'Geen enkel restaurant past. Probeer een andere regio, zet “alleen nieuwe en hoge potentie” uit'],[/ ou cherchez les positions manquantes\./,' of zoek de ontbrekende posities op.'],[/Déplacez le repère D sur la carte, puis revenez sur Aujourd’hui\./,'Sleep de pin D op de kaart en ga dan terug naar Vandaag.']);
+FRAG.push([/position approximative/g,'positie bij benadering'],[/(\d+) positions trouvées, (\d+) approximatives\./,'$1 posities gevonden, $2 bij benadering.'],[/^Départ : (?=.)/,'Start: '],[/^Chercher les positions manquantes \((\d+)\)/,'Ontbrekende posities opzoeken ($1)'],[/(\d+) arrêts · /,'$1 stops · '],[/(\d+) positions trouvées, (\d+) introuvables\./,'$1 posities gevonden, $2 niet gevonden.'],[/Plus de restaurants ne correspondent pas aux filtres/,'Er zijn geen restaurants meer die aan de filters voldoen'],[/ \(certains n’ont pas encore de position\)/,' (sommige hebben nog geen positie)'],[/Essayez une autre région ou désactivez « nouveaux et fort potentiel »\./,'Probeer een andere regio of zet “alleen nieuwe en hoge potentie” uit.'],[/Aucun restaurant ne correspond\. Essayez une autre région, désactivez « nouveaux et fort potentiel »/,'Geen enkel restaurant past. Probeer een andere regio, zet “alleen nieuwe en hoge potentie” uit'],[/ ou cherchez les positions manquantes\./,' of zoek de ontbrekende posities op.'],[/Déplacez le repère D sur la carte, puis revenez sur Aujourd’hui\./,'Sleep de pin D op de kaart en ga dan terug naar Vandaag.']);
 setLang(lang);
 showTab('today');
 
