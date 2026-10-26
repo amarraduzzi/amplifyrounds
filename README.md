@@ -34,3 +34,7 @@ The app has an FR | NL switch in the header (default: Dutch). The choice is reme
 Run `schema-update-1.sql` in Supabase (SQL Editor) BEFORE uploading index.html.
 New fields per restaurant: type, website yes/no, Google rating and review count, environment. The list is sorted by a provisional lead score (no website, Google reviews, not a difficult area).
 CSV import also reads rating / reviews / website / type columns when present.
+
+## Update 2: bezoeken en pijplijn
+
+Run `schema-update-2.sql` in Supabase BEFORE uploading index.html. Visit log with outcome, contact person, interest, objection and who visited; pipeline statuses (to visit, visited, interested, appointment, demo, trial, client, not interested); filters "to follow up" and "not yet visited"; last visit date in the list.

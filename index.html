@@ -115,6 +115,8 @@ header h1{font-size:26px}dialog h2{font-size:24px}
 .btn,header button{border-radius:999px}
 .btn.primary{background:var(--green);border-color:var(--green);color:var(--ink);font-weight:700}
 .tabs button[aria-selected=true]{border-bottom-color:var(--green)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chips button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:9px 13px;min-height:40px}
+.chips button.on{background:var(--ink);color:#fff;border-color:var(--ink)}.lbl{font-size:13px;color:var(--mute);margin-bottom:4px}
 .score{display:inline-block;min-width:30px;text-align:center;padding:0 7px;margin-left:8px;border-radius:10px;font-size:12px;font-weight:700;line-height:20px;background:#E3E8E5;color:var(--mute);vertical-align:middle}
 .score.mid{background:var(--mint);color:#00804A}.score.hi{background:var(--green);color:var(--ink)}
 @media(max-width:820px){
@@ -226,8 +228,12 @@ header h1{font-size:26px}dialog h2{font-size:24px}
 <dialog id="dlgVisit">
   <form method="dialog" id="fVisit">
     <h2 id="visitTitle">Visite</h2>
-    <label>Compte rendu<textarea name="note" rows="4" placeholder="Ce qui a été dit, ce qui l’intéresse, objections…"></textarea></label>
-    <label>Prochaine étape<input name="next_step" placeholder="Ex. envoyer la démo, repasser jeudi"></label>
+    <div><div class="lbl">Résultat</div><div class="chips" id="chips"><button type="button" data-o="absent">Pas là</button><button type="button" data-o="talked">Parlé au gérant</button><button type="button" data-o="interested">Intéressé</button><button type="button" data-o="appt">RDV pris</button><button type="button" data-o="no">Pas intéressé</button></div><input type="hidden" name="outcome"></div>
+<div class="two"><label>Parlé avec<input name="contact_name" placeholder="Prénom, rôle"></label><label>Intérêt<select name="product"><option value="">—</option><option>POS</option><option>Profit</option><option>Site</option><option>Clients</option></select></label></div>
+<label>Objection<select name="objection"><option value="">—</option><option value="price">Prix</option><option value="equipped">Déjà équipé</option><option value="time">Pas le temps</option><option value="decider">Pas le décideur</option><option value="other">Autre</option></select></label>
+<label>Compte rendu<textarea name="note" rows="4" placeholder="Ce qui a été dit, ce qui l’intéresse, objections…"></textarea></label>
+    <div class="chips" id="dates"><button type="button" data-d="1">Demain</button><button type="button" data-d="3">+3 jours</button><button type="button" data-d="7">+1 semaine</button></div>
+<label>Prochaine étape<input name="next_step" placeholder="Ex. envoyer la démo, repasser jeudi"></label>
     <div class="two">
       <label>Prochain contact<input name="next_contact" type="date"></label>
       <label>Statut après visite<select name="status"></select></label>
@@ -278,11 +284,14 @@ const RABAT = [34.0209, -6.8416];
 const WA_INTRO = "Bonjour, c’est l’équipe Amplify. Merci pour l’échange aujourd’hui !";
 
 const STATUS = {
-  new:   { label: 'À visiter',     color: '#6B7B88' },
-  appt:  { label: 'Rendez-vous',   color: '#D98E04' },
-  demo:  { label: 'Démo faite',    color: '#1F5FBF' },
-  client:{ label: 'Client',        color: '#1E9E5A' },
-  lost:  { label: 'Pas intéressé', color: '#B8433A' }
+new: { label: 'À visiter', color: '#6B7B88' },
+visited: { label: 'Visité', color: '#0A3F7A' },
+interested: { label: 'Intéressé', color: '#D98E04' },
+appt: { label: 'Rendez-vous', color: '#C25E00' },
+demo: { label: 'Démo faite', color: '#7A4FB5' },
+trial: { label: 'Essai en cours', color: '#00A6A6' },
+client: { label: 'Client', color: '#05B962' },
+lost: { label: 'Pas intéressé', color: '#B8433A' }
 };
 
 // ====== Helpers ======
@@ -353,8 +362,8 @@ const store = {
     localStorage.setItem('at_visits', JSON.stringify(a));
   },
   async visitsFor(id) {
-    if (sb) { const { data } = await sb.from('visits').select('*').eq('restaurant_id', id).order('created_at', { ascending: false }).limit(5); return data || []; }
-    return ls('at_visits', '[]').filter(v => v.restaurant_id === id).sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 5);
+    if (sb) { const { data } = await sb.from('visits').select('*').eq('restaurant_id', id).order('created_at', { ascending: false }).limit(15); return data || []; }
+    return ls('at_visits', '[]').filter(v => v.restaurant_id === id).sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 15);
   }
 };
 
@@ -388,11 +397,11 @@ map.on('click', e => {
 function filtered() {
   const q = $('#q').value.trim().toLowerCase(), s = $('#fStatus').value, d = $('#fDistrict').value;
   const toks = norm(q).split(/\s+/).filter(Boolean);
-  return rows.filter(r => (!s || r.status === s) && (!d || r.district === d) && (!toks.length || (h => toks.every(t => h.includes(t)))(norm([r.name, r.address, r.district, r.phone, (r.phone || '').replace(/\D/g, ''), STATUS[r.status]?.label].join(' ')))));
+  return rows.filter(r => (!s || (s === 'due' ? r.next_contact && r.next_contact <= new Date().toISOString().slice(0, 10) : s === 'todo' ? !r.last_visit_at : r.status === s)) && (!d || r.district === d) && (!toks.length || (h => toks.every(t => h.includes(t)))(norm([r.name, r.address, r.district, r.phone, (r.phone || '').replace(/\D/g, ''), STATUS[r.status]?.label].join(' ')))));
 }
 function renderFilters() {
   const s = $('#fStatus'), cur = s.value;
-  s.innerHTML = '<option value="">Tous statuts</option>' + Object.entries(STATUS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+  s.innerHTML = '<option value="">Tous statuts</option><option value="due">À relancer</option><option value="todo">Pas encore visité</option>' + Object.entries(STATUS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
   s.value = cur;
   const ds = [...new Set(rows.map(r => r.district).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   const d = $('#fDistrict'), cd = d.value;
@@ -412,6 +421,7 @@ function renderMarkers() {
     markerLayer.addLayer(m);
   });
 }
+const fmtD = d => { const x = new Date(d); return x.getDate() + '/' + (x.getMonth() + 1); };
 function leadScore(r) {
   if (r.status === 'client' || r.status === 'lost') return null;
   let n = 40;
@@ -419,7 +429,8 @@ function leadScore(r) {
   const v = r.g_reviews || 0; n += v >= 300 ? 20 : v >= 100 ? 15 : v >= 30 ? 10 : v > 0 ? 5 : 0;
   if (r.g_rating >= 4.3) n += 5; else if (v && r.g_rating < 3.5) n -= 5;
   if (r.area === 'bad') n -= r.kind === 'cafe' ? 35 : 25; else if (r.area === 'good') n += 10;
-  if (r.status === 'appt' || r.status === 'demo') n += 10;
+  if (r.status === 'appt' || r.status === 'demo') n += 10; else if (r.status === 'interested') n += 15; else if (r.status === 'trial') n += 20;
+  if (r.next_contact && r.next_contact <= new Date().toISOString().slice(0, 10)) n += 10;
   return Math.max(0, Math.min(100, n));
 }
 function renderList() {
@@ -433,7 +444,7 @@ function renderList() {
       <span class="dot" style="background:${STATUS[r.status]?.color}" title="${esc(STATUS[r.status]?.label)}"></span>
       <div>
         <button class="name" onclick="focusRow('${r.id}')">${esc(r.name)}</button>${leadScore(r) != null ? `<span class="score ${leadScore(r) >= 70 ? 'hi' : leadScore(r) >= 50 ? 'mid' : ''}" title="Lead score">${leadScore(r)}</span>` : ''}
-        <div class="meta">${esc(STATUS[r.status]?.label)}${r.district ? ' · ' + esc(r.district) : ''}${noPos ? ' · sans position' : ''}</div>
+        <div class="meta">${esc(STATUS[r.status]?.label)}${r.district ? ' · ' + esc(r.district) : ''}${noPos ? ' · sans position' : ''}${r.last_visit_at ? ' · visité ' + fmtD(r.last_visit_at) : ''}</div>
         ${r.next_step ? `<div class="next ${due ? 'due' : ''}">${due ? 'À relancer : ' : ''}${esc(r.next_step)}</div>` : ''}
       </div>
       <div class="acts">
@@ -520,7 +531,7 @@ $('#btnDelete').onclick = async () => {
 window.openVisit = async id => {
   map.closePopup();
   const r = rows.find(x => x.id === id); if (!r) return;
-  visitId = id; const f = $('#fVisit'); f.reset();
+  visitId = id; const f = $('#fVisit'); f.reset(); document.querySelectorAll('#chips button').forEach(x => x.classList.remove('on'));
   f.status.innerHTML = Object.entries(STATUS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
   f.status.value = r.status; f.next_step.value = r.next_step || ''; f.next_contact.value = r.next_contact || '';
   $('#visitTitle').textContent = r.name;
@@ -528,7 +539,11 @@ window.openVisit = async id => {
   $('#visitHist').innerHTML = '';
   $('#dlgVisit').showModal();
   const vs = await store.visitsFor(id);
-  $('#visitHist').innerHTML = vs.length ? '<b style="color:var(--ink)">Visites précédentes</b>' + vs.map(v => `<div>${new Date(v.created_at).toLocaleDateString('fr-FR')} — ${esc(v.note || '(sans note)')}</div>`).join('') : '';
+  const OUTL = { absent: 'Pas là', talked: 'Parlé au gérant', interested: 'Intéressé', appt: 'RDV pris', no: 'Pas intéressé' };
+  $('#visitHist').innerHTML = vs.length ? '<b style="color:var(--ink)">Visites précédentes</b>' + vs.map(v => {
+    const head = [OUTL[v.outcome], v.contact_name, v.visited_by ? 'par ' + v.visited_by : ''].filter(Boolean).join(' · ');
+    return `<div>${fmtD(v.created_at)} — ${esc(head)}${head && v.note ? ' — ' : ''}${esc(v.note || (head ? '' : '(sans note)'))}</div>`;
+  }).join('') : '';
 };
 $('#btnVisitCancel').onclick = () => $('#dlgVisit').close();
 $('#btnWa').onclick = () => {
@@ -540,7 +555,8 @@ $('#btnWa').onclick = () => {
 $('#fVisit').addEventListener('submit', async e => {
   const f = e.target, r = rows.find(x => x.id === visitId); if (!r) return;
   try {
-    await store.addVisit({ id: uid(), restaurant_id: r.id, note: f.note.value.trim() || null, status_after: f.status.value });
+    let by = 'moi'; if (sb) { const { data } = await sb.auth.getSession(); by = (data.session?.user?.email || '').split('@')[0] || null; }
+await store.addVisit({ id: uid(), restaurant_id: r.id, note: f.note.value.trim() || null, status_after: f.status.value, outcome: f.outcome.value || null, contact_name: f.contact_name.value.trim() || null, product: f.product.value || null, objection: f.objection.value || null, visited_by: by });
     await store.save({ id: r.id, name: r.name, status: f.status.value, next_step: f.next_step.value.trim() || null, next_contact: f.next_contact.value || null, last_visit_at: new Date().toISOString() });
     await reload(); toast('Visite enregistrée.');
   } catch (err) { toast('Erreur : ' + err.message, 5000); }
@@ -768,6 +784,17 @@ $('#btnAddAll').onclick = async () => {
   try { await store.saveMany(add); await reload(); renderSearch(); toast(`${add.length} ajoutés.`, 4000); } catch (err) { toast('Erreur : ' + err.message, 5000); }
 };
 
+const RANK = ['new', 'visited', 'interested', 'appt', 'demo', 'trial', 'client'], OUT = { talked: 'visited', interested: 'interested', appt: 'appt', no: 'lost' };
+$('#chips').addEventListener('click', e => {
+  const b = e.target.closest('button[data-o]'); if (!b) return;
+  const f = $('#fVisit'); f.outcome.value = b.dataset.o;
+  document.querySelectorAll('#chips button').forEach(x => x.classList.toggle('on', x === b));
+  const st = OUT[b.dataset.o]; if (st && (st === 'lost' || RANK.indexOf(st) > RANK.indexOf(f.status.value))) f.status.value = st;
+});
+$('#dates').addEventListener('click', e => {
+  const b = e.target.closest('button[data-d]'); if (b) $('#fVisit').next_contact.value = new Date(Date.now() + b.dataset.d * 864e5).toISOString().slice(0, 10);
+});
+
 // ====== Langue / Taal (FR / NL) ======
 const D = {
 'Importer':'Importeren','+ Ajouter':'+ Toevoegen','Sortir':'Uitloggen','Restaurants':'Restaurants','Ma tournée':'Mijn ronde',
@@ -807,8 +834,8 @@ const FRAG = [
 [/^Localisation (\d+)\/(\d+)…/,'Locatie zoeken $1/$2…'],[/^Modifier (.+)$/,'Bewerk $1'],[/^Ajouter (.+) à la tournée$/,'$1 aan ronde toevoegen'],
 [/^À visiter(?= ·|$)/,'Te bezoeken'],[/^Rendez-vous(?= ·|$)/,'Afspraak'],[/^Démo faite(?= ·|$)/,'Demo gedaan'],[/^Client(?= ·|$)/,'Klant'],[/^Pas intéressé(?= ·|$)/,'Niet geïnteresseerd']
 ];
-Object.assign(D, {'Type':'Type','Site web':'Website','Inconnu':'Onbekend','Pas de site':'Geen website','A un site':'Heeft website','Note Google':'Google-score','Nombre d’avis':'Aantal reviews','Environnement':'Omgeving','Quartier agréable':'Fijne buurt','Moyen':'Matig','Quartier difficile':'Lastige buurt','Pâtisserie':'Patisserie','Client':'Klant','Chercher en ligne':'Online zoeken','Recherche en ligne':'Online zoeken','Nom du restaurant':'Naam restaurant','Tous les restaurants de la zone':'Alle restaurants in de regio','Fermer':'Sluiten','Ajouter':'Toevoegen','Déjà dans la liste':'Staat al in de lijst','Tout ajouter':'Alles toevoegen','Ajouté.':'Toegevoegd.','Aucun résultat en ligne.':'Niets gevonden.','Chargement des restaurants…':'Restaurants laden…','Service indisponible, réessayez.':'Service niet beschikbaar, probeer het later opnieuw.'});
-FRAG.push([/(\d+) résultats/,'$1 resultaten'],[/(\d+) nouveaux/,'$1 nieuw'],[/^(\d+) ajoutés\./,'$1 toegevoegd.'],[/^(\d+) restaurants \?$/,'$1 restaurants toevoegen?']);
+Object.assign(D, {'Résultat':'Uitkomst','Pas là':'Niet aanwezig','Parlé au gérant':'Met manager gesproken','Intéressé':'Geïnteresseerd','RDV pris':'Afspraak gemaakt','Parlé avec':'Gesproken met','Intérêt':'Interesse','Objection':'Bezwaar','Prix':'Prijs','Déjà équipé':'Al uitgerust','Pas le temps':'Geen tijd','Pas le décideur':'Niet de beslisser','Autre':'Anders','Demain':'Morgen','+3 jours':'+3 dagen','+1 semaine':'+1 week','Visité':'Bezocht','Essai en cours':'Proefperiode','À relancer':'Opvolgen','Pas encore visité':'Nog niet bezocht','Prénom, rôle':'Voornaam, functie','Type':'Type','Site web':'Website','Inconnu':'Onbekend','Pas de site':'Geen website','A un site':'Heeft website','Note Google':'Google-score','Nombre d’avis':'Aantal reviews','Environnement':'Omgeving','Quartier agréable':'Fijne buurt','Moyen':'Matig','Quartier difficile':'Lastige buurt','Pâtisserie':'Patisserie','Client':'Klant','Chercher en ligne':'Online zoeken','Recherche en ligne':'Online zoeken','Nom du restaurant':'Naam restaurant','Tous les restaurants de la zone':'Alle restaurants in de regio','Fermer':'Sluiten','Ajouter':'Toevoegen','Déjà dans la liste':'Staat al in de lijst','Tout ajouter':'Alles toevoegen','Ajouté.':'Toegevoegd.','Aucun résultat en ligne.':'Niets gevonden.','Chargement des restaurants…':'Restaurants laden…','Service indisponible, réessayez.':'Service niet beschikbaar, probeer het later opnieuw.'});
+FRAG.push([/ · visité /,' · bezocht '],[/^Visité(?= ·|$)/,'Bezocht'],[/^Intéressé(?= ·|$)/,'Geïnteresseerd'],[/^Essai en cours(?= ·|$)/,'Proefperiode'],[/— Pas là/,'— Niet aanwezig'],[/— Parlé au gérant/,'— Met manager gesproken'],[/— Intéressé/,'— Geïnteresseerd'],[/— RDV pris/,'— Afspraak gemaakt'],[/— Pas intéressé/,'— Niet geïnteresseerd'],[/\(sans note\)/,'(geen notitie)'],[/(· |— )par /,'$1door '],[/(\d+) résultats/,'$1 resultaten'],[/(\d+) nouveaux/,'$1 nieuw'],[/^(\d+) ajoutés\./,'$1 toegevoegd.'],[/^(\d+) restaurants \?$/,'$1 restaurants toevoegen?']);
 let lang = localStorage.getItem('at_lang') || 'nl';
 function trNl(s) {
   const k = s.trim(); if (!k) return s;
