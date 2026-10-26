@@ -80,6 +80,11 @@ dialog input,dialog select,dialog textarea{border:1px solid var(--line);border-r
 }
 
 .online{padding:10px 14px 0;display:flex;gap:8px}.online .btn{flex:1}
+.blk{padding:12px 14px;border-bottom:1px solid var(--line)}.blk h3{margin:0 0 8px;font-size:15px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 14px}.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;font-size:13px;color:var(--mute)}
+.kpi b{display:block;font-size:26px;font-stretch:62%;font-weight:800;color:var(--ink)}
+.brow{display:grid;grid-template-columns:104px 1fr 34px;gap:8px;align-items:center;font-size:14px;padding:3px 0}.brow span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{background:#E3E8E5;border-radius:6px;height:10px;overflow:hidden}.bar i{display:block;height:100%;background:var(--green)}
 .tip{font-size:13px;background:var(--mint);border-radius:8px;padding:6px 9px;margin-top:6px}.late{color:var(--danger);font-weight:500}
 .stat{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--mute)}
 button.score{border:0;cursor:pointer;min-height:30px;min-width:40px}
@@ -95,7 +100,7 @@ dialog .lang button.on{background:var(--ink);color:#fff}
 dialog{overflow:hidden}
 dialog form{overflow:auto;max-height:92dvh}
 @media(max-width:820px){
-.app{grid-template-rows:34dvh 1fr}
+.app{grid-template-rows:1fr}.map-wrap{display:none}body[data-tab=route] .map-wrap{display:block}body[data-tab=route] .app{grid-template-rows:44dvh 1fr}
 header{flex-wrap:wrap;row-gap:8px}
 header h1{flex:1 1 auto}
 .lang{order:1}
@@ -144,10 +149,11 @@ header h1{font-size:26px}dialog h2{font-size:24px}
     </header>
     <div class="tabs" role="tablist">
       <button role="tab" id="tabToday" aria-selected="true">Aujourd’hui</button><button role="tab" id="tabList" aria-selected="false">Restaurants</button>
-      <button role="tab" id="tabRoute" aria-selected="false">Ma tournée<span class="badge" id="badge">0</span></button>
+      <button role="tab" id="tabStats" aria-selected="false">Chiffres</button><button role="tab" id="tabRoute" aria-selected="false">Carte<span class="badge" id="badge">0</span></button>
     </div>
 
     <section class="pane" id="paneToday"><div id="today"></div></section>
+<section class="pane" id="paneStats" hidden><div id="stats"></div></section>
 <section class="pane" id="paneList" hidden>
       <div class="online"><button class="btn primary" id="btnOnline" type="button">Chercher en ligne</button><button class="btn" id="btnW" type="button">Réglages du score</button></div>
 <div class="filters">
@@ -515,7 +521,7 @@ window.toggleStop = id => {
 window.focusRow = id => {
   const r = rows.find(x => x.id === id);
   if (r?.lat == null) { toast('Ce restaurant n’a pas encore de position.'); return openEdit(id); }
-  if (matchMedia('(max-width:820px)').matches) window.scrollTo(0, 0);
+  if (matchMedia('(max-width:820px)').matches) { showTab('route'); map.invalidateSize(); }
   map.setView([r.lat, r.lng], 16);
 };
 window.openEdit = id => {
@@ -542,7 +548,7 @@ $('#btnGeocode').onclick = async () => {
   try { const p = await geocode(q); if (!p) return toast('Adresse introuvable. Essayez le lien Google Maps ou la carte.', 4500); f.lat.value = p.lat.toFixed(6); f.lng.value = p.lng.toFixed(6); toast('Position trouvée. Vérifiez-la avec « Placer sur la carte » si besoin.', 4500); }
   catch { toast('Recherche impossible pour le moment.'); }
 };
-$('#btnPick').onclick = () => { pickMode = true; $('#dlgEdit').close(); $('#hint').classList.add('on'); if (matchMedia('(max-width:820px)').matches) window.scrollTo(0, 0); };
+$('#btnPick').onclick = () => { pickMode = true; $('#dlgEdit').close(); $('#hint').classList.add('on'); if (matchMedia('(max-width:820px)').matches) { showTab('route'); map.invalidateSize(); } };
 $('#fEdit').addEventListener('submit', async e => {
   const f = e.target;
   const num = v => v === '' || v == null ? null : parseFloat(String(v).replace(',', '.'));
@@ -712,10 +718,13 @@ window.wazeTo = id => { const r = rows.find(x => x.id === id); if (r) window.ope
 
 // ====== Tabs & filters ======
 function showTab(w) {
-  [['today', '#paneToday', '#tabToday'], ['list', '#paneList', '#tabList'], ['route', '#paneRoute', '#tabRoute']].forEach(([k, pn, t]) => { $(pn).hidden = k !== w; $(t).setAttribute('aria-selected', k === w); });
+  [['today', '#paneToday', '#tabToday'], ['list', '#paneList', '#tabList'], ['route', '#paneRoute', '#tabRoute'], ['stats', '#paneStats', '#tabStats']].forEach(([k, pn, t]) => { $(pn).hidden = k !== w; $(t).setAttribute('aria-selected', k === w); });
+  document.body.dataset.tab = w;
+  if (w === 'route') map.invalidateSize();
   if (w === 'today') renderToday();
+  if (w === 'stats') renderStats();
 }
-$('#tabToday').onclick = () => showTab('today'); $('#tabList').onclick = () => showTab('list'); $('#tabRoute').onclick = () => showTab('route');
+$('#tabToday').onclick = () => showTab('today'); $('#tabList').onclick = () => showTab('list'); $('#tabRoute').onclick = () => showTab('route'); $('#tabStats').onclick = () => showTab('stats');
 ['#q', '#fStatus', '#fDistrict'].forEach(s => $(s).addEventListener('input', renderList));
 
 // ====== Boot ======
@@ -872,6 +881,33 @@ $('#today').addEventListener('click', e => {
   }
 });
 
+// ====== Chiffres ======
+store.allVisits = async () => sb ? ((await sb.from('visits').select('*').order('created_at', { ascending: false }).limit(2000)).data || []) : ls('at_visits', '[]');
+async function renderStats() {
+  const el = $('#stats'); let vs = []; try { vs = await store.allVisits(); } catch {}
+  const bars = (items, max) => items.map(([t, n, c]) => `<div class="brow"><span>${esc(t)}${c ? '' : ''}</span><div class="bar"><i style="width:${max ? Math.round(n / max * 100) : 0}%"></i></div><b>${n}</b></div>`).join('');
+  const POS = ['interested', 'appt', 'demo', 'trial', 'client'], now = Date.now();
+  const wkStart = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return x.getTime(); };
+  const cur = wkStart(now), weeks = [...Array(6)].map((_, i) => cur - (5 - i) * 7 * 864e5);
+  const wk = weeks.map(w => [fmtD(w), vs.filter(v => wkStart(v.created_at) === w).length]);
+  const st = Object.keys(STATUS).map(k => [STATUS[k].label, rows.filter(r => r.status === k).length]);
+  const who = {}; vs.filter(v => now - new Date(v.created_at) < 30 * 864e5).forEach(v => { const k = v.visited_by || '?'; who[k] = (who[k] || 0) + 1; });
+  const cnt = key => { const m = {}; vs.forEach(v => { if (v[key]) m[v[key]] = (m[v[key]] || 0) + 1; }); return Object.entries(m).sort((a, b) => b[1] - a[1]); };
+  const OBJ = { price: 'Prix', equipped: 'Déjà équipé', time: 'Pas le temps', decider: 'Pas le décideur', other: 'Autre' };
+  const dist = {}; rows.filter(r => r.last_visit_at && r.district).forEach(r => { const d = dist[r.district] || (dist[r.district] = { v: 0, p: 0 }); d.v++; if (POS.includes(r.status)) d.p++; });
+  const dl = Object.entries(dist).sort((a, b) => b[1].p - a[1].p || b[1].v - a[1].v).slice(0, 8);
+  const visited = rows.filter(r => r.last_visit_at).length;
+  const sec = (h, body) => `<div class="blk"><h3>${h}</h3>${body}</div>`;
+  el.innerHTML = `<div class="kpis"><div class="kpi"><b>${rows.length}</b>Restaurants</div><div class="kpi"><b>${visited}</b>Visités</div><div class="kpi"><b>${wk[5][1]}</b>Visites (cette semaine)</div></div>` +
+    sec('Entonnoir', bars(st, Math.max(1, ...st.map(x => x[1])))) +
+    sec('Visites par semaine', bars(wk, Math.max(1, ...wk.map(x => x[1])))) +
+    (Object.keys(who).length ? sec('Par personne (30 jours)', bars(Object.entries(who), Math.max(...Object.values(who)))) : '') +
+    (dl.length ? sec('Quartiers', dl.map(([d, x]) => `<div class="brow" style="grid-template-columns:1fr auto"><span>${esc(d)}</span><span>${x.v} visités · ${x.p} positifs</span></div>`).join('')) : '') +
+    (cnt('objection').length ? sec('Objections', bars(cnt('objection').map(([k, n]) => [OBJ[k] || k, n]), cnt('objection')[0][1])) : '') +
+    (cnt('product').length ? sec('Intérêt produits', bars(cnt('product'), cnt('product')[0][1])) : '') +
+    (vs.length ? '' : '<div class="empty">Pas encore de visites enregistrées. Les chiffres apparaissent après vos premières visites.</div>');
+}
+
 // ====== Langue / Taal (FR / NL) ======
 const D = {
 'Importer':'Importeren','+ Ajouter':'+ Toevoegen','Sortir':'Uitloggen','Restaurants':'Restaurants','Ma tournée':'Mijn ronde',
@@ -911,8 +947,8 @@ const FRAG = [
 [/^Localisation (\d+)\/(\d+)…/,'Locatie zoeken $1/$2…'],[/^Modifier (.+)$/,'Bewerk $1'],[/^Ajouter (.+) à la tournée$/,'$1 aan ronde toevoegen'],
 [/^À visiter(?= ·|$)/,'Te bezoeken'],[/^Rendez-vous(?= ·|$)/,'Afspraak'],[/^Démo faite(?= ·|$)/,'Demo gedaan'],[/^Client(?= ·|$)/,'Klant'],[/^Pas intéressé(?= ·|$)/,'Niet geïnteresseerd']
 ];
-Object.assign(D, {'Aujourd’hui':'Vandaag','Combien de temps avez-vous ?':'Hoeveel tijd heb je?','Mettre dans ma tournée':'In mijn ronde zetten','Reprenez où vous en étiez.':'Pak de draad op waar je gebleven was.','Pas de site : proposez Amplify Site (dès 250 DH).':'Geen website: stel Amplify Site voor (vanaf 250 DH).','Beaucoup d’avis, donc du passage : parlez marges et caisse (POS dès 199 DH/mois).':'Veel reviews, dus veel klanten: praat over marges en kassa (POS vanaf 199 DH/maand).','Premier contact : demandez comment ils suivent leurs marges aujourd’hui.':'Eerste contact: vraag hoe ze nu hun marges bijhouden.','Ajoutez des restaurants avec une position (liste, import ou recherche en ligne) pour recevoir un conseil.':'Voeg restaurants met een locatie toe (lijst, import of online zoeken) om advies te krijgen.','Réglages du score':'Score-instellingen','Réinitialiser':'Standaard herstellen','Plus le nombre est grand, plus ce critère compte. Les réglages restent sur cet appareil.':'Hoe groter het getal, hoe zwaarder het criterium telt. De instellingen blijven op dit apparaat.','Réglages réinitialisés.':'Instellingen hersteld.','Pas de site web':'Geen website','A déjà un site web':'Heeft al een website','Avis Google (maximum)':'Google-reviews (maximum)','Bonne note Google':'Goede Google-score','Note Google basse':'Lage Google-score','Café dans un quartier difficile':'Café in een lastige buurt','Rendez-vous ou démo en cours':'Afspraak of demo bezig','Déjà intéressé':'Al geïnteresseerd','En période d’essai':'In proefperiode','Relance à faire':'Opvolging nodig','Base':'Basis','Score':'Score','Fermer':'Sluiten','Résultat':'Uitkomst','Pas là':'Niet aanwezig','Parlé au gérant':'Met manager gesproken','Intéressé':'Geïnteresseerd','RDV pris':'Afspraak gemaakt','Parlé avec':'Gesproken met','Intérêt':'Interesse','Objection':'Bezwaar','Prix':'Prijs','Déjà équipé':'Al uitgerust','Pas le temps':'Geen tijd','Pas le décideur':'Niet de beslisser','Autre':'Anders','Demain':'Morgen','+3 jours':'+3 dagen','+1 semaine':'+1 week','Visité':'Bezocht','Essai en cours':'Proefperiode','À relancer':'Opvolgen','Pas encore visité':'Nog niet bezocht','Prénom, rôle':'Voornaam, functie','Type':'Type','Site web':'Website','Inconnu':'Onbekend','Pas de site':'Geen website','A un site':'Heeft website','Note Google':'Google-score','Nombre d’avis':'Aantal reviews','Environnement':'Omgeving','Quartier agréable':'Fijne buurt','Moyen':'Matig','Quartier difficile':'Lastige buurt','Pâtisserie':'Patisserie','Client':'Klant','Chercher en ligne':'Online zoeken','Recherche en ligne':'Online zoeken','Nom du restaurant':'Naam restaurant','Tous les restaurants de la zone':'Alle restaurants in de regio','Fermer':'Sluiten','Ajouter':'Toevoegen','Déjà dans la liste':'Staat al in de lijst','Tout ajouter':'Alles toevoegen','Ajouté.':'Toegevoegd.','Aucun résultat en ligne.':'Niets gevonden.','Chargement des restaurants…':'Restaurants laden…','Service indisponible, réessayez.':'Service niet beschikbaar, probeer het later opnieuw.'});
-FRAG.push([/(\d+) à relancer/,'$1 opvolgen'],[/(\d+) pas encore visités/,'$1 nog niet bezocht'],[/(\d+) visites cette semaine/,'$1 bezoeken deze week'],[/^Relance prévue le /,'Opvolging gepland op '],[/ \(en retard\)/,' (te laat)'],[/ · pas de site/,' · geen website'],[/ · (\d+) avis/,' · $1 reviews'],[/ · jamais visité/,' · nog nooit bezocht'],[/(\d+) avis Google/,'$1 Google-reviews'],[/^À compléter : /,'Nog aan te vullen: '],[/Site web inconnu/,'Website onbekend'],[/Avis Google manquants/,'Google-reviews ontbreken'],[/Environnement non renseigné/,'Omgeving niet ingevuld'],[/ · visité /,' · bezocht '],[/^Visité(?= ·|$)/,'Bezocht'],[/^Intéressé(?= ·|$)/,'Geïnteresseerd'],[/^Essai en cours(?= ·|$)/,'Proefperiode'],[/— Pas là/,'— Niet aanwezig'],[/— Parlé au gérant/,'— Met manager gesproken'],[/— Intéressé/,'— Geïnteresseerd'],[/— RDV pris/,'— Afspraak gemaakt'],[/— Pas intéressé/,'— Niet geïnteresseerd'],[/\(sans note\)/,'(geen notitie)'],[/(· |— )par /,'$1door '],[/(\d+) résultats/,'$1 resultaten'],[/(\d+) nouveaux/,'$1 nieuw'],[/^(\d+) ajoutés\./,'$1 toegevoegd.'],[/^(\d+) restaurants \?$/,'$1 restaurants toevoegen?']);
+Object.assign(D, {'Carte':'Kaart','Chiffres':'Cijfers','Visités':'Bezocht','Visites (cette semaine)':'Bezoeken (deze week)','Entonnoir':'Trechter','Visites par semaine':'Bezoeken per week','Par personne (30 jours)':'Per persoon (30 dagen)','Quartiers':'Wijken','Objections':'Bezwaren','Intérêt produits':'Interesse per product','Pas encore de visites enregistrées. Les chiffres apparaissent après vos premières visites.':'Nog geen bezoeken vastgelegd. De cijfers verschijnen na jullie eerste bezoeken.','Aujourd’hui':'Vandaag','Combien de temps avez-vous ?':'Hoeveel tijd heb je?','Mettre dans ma tournée':'In mijn ronde zetten','Reprenez où vous en étiez.':'Pak de draad op waar je gebleven was.','Pas de site : proposez Amplify Site (dès 250 DH).':'Geen website: stel Amplify Site voor (vanaf 250 DH).','Beaucoup d’avis, donc du passage : parlez marges et caisse (POS dès 199 DH/mois).':'Veel reviews, dus veel klanten: praat over marges en kassa (POS vanaf 199 DH/maand).','Premier contact : demandez comment ils suivent leurs marges aujourd’hui.':'Eerste contact: vraag hoe ze nu hun marges bijhouden.','Ajoutez des restaurants avec une position (liste, import ou recherche en ligne) pour recevoir un conseil.':'Voeg restaurants met een locatie toe (lijst, import of online zoeken) om advies te krijgen.','Réglages du score':'Score-instellingen','Réinitialiser':'Standaard herstellen','Plus le nombre est grand, plus ce critère compte. Les réglages restent sur cet appareil.':'Hoe groter het getal, hoe zwaarder het criterium telt. De instellingen blijven op dit apparaat.','Réglages réinitialisés.':'Instellingen hersteld.','Pas de site web':'Geen website','A déjà un site web':'Heeft al een website','Avis Google (maximum)':'Google-reviews (maximum)','Bonne note Google':'Goede Google-score','Note Google basse':'Lage Google-score','Café dans un quartier difficile':'Café in een lastige buurt','Rendez-vous ou démo en cours':'Afspraak of demo bezig','Déjà intéressé':'Al geïnteresseerd','En période d’essai':'In proefperiode','Relance à faire':'Opvolging nodig','Base':'Basis','Score':'Score','Fermer':'Sluiten','Résultat':'Uitkomst','Pas là':'Niet aanwezig','Parlé au gérant':'Met manager gesproken','Intéressé':'Geïnteresseerd','RDV pris':'Afspraak gemaakt','Parlé avec':'Gesproken met','Intérêt':'Interesse','Objection':'Bezwaar','Prix':'Prijs','Déjà équipé':'Al uitgerust','Pas le temps':'Geen tijd','Pas le décideur':'Niet de beslisser','Autre':'Anders','Demain':'Morgen','+3 jours':'+3 dagen','+1 semaine':'+1 week','Visité':'Bezocht','Essai en cours':'Proefperiode','À relancer':'Opvolgen','Pas encore visité':'Nog niet bezocht','Prénom, rôle':'Voornaam, functie','Type':'Type','Site web':'Website','Inconnu':'Onbekend','Pas de site':'Geen website','A un site':'Heeft website','Note Google':'Google-score','Nombre d’avis':'Aantal reviews','Environnement':'Omgeving','Quartier agréable':'Fijne buurt','Moyen':'Matig','Quartier difficile':'Lastige buurt','Pâtisserie':'Patisserie','Client':'Klant','Chercher en ligne':'Online zoeken','Recherche en ligne':'Online zoeken','Nom du restaurant':'Naam restaurant','Tous les restaurants de la zone':'Alle restaurants in de regio','Fermer':'Sluiten','Ajouter':'Toevoegen','Déjà dans la liste':'Staat al in de lijst','Tout ajouter':'Alles toevoegen','Ajouté.':'Toegevoegd.','Aucun résultat en ligne.':'Niets gevonden.','Chargement des restaurants…':'Restaurants laden…','Service indisponible, réessayez.':'Service niet beschikbaar, probeer het later opnieuw.'});
+FRAG.push([/(\d+) visités · (\d+) positifs/,'$1 bezocht · $2 positief'],[/(\d+) à relancer/,'$1 opvolgen'],[/(\d+) pas encore visités/,'$1 nog niet bezocht'],[/(\d+) visites cette semaine/,'$1 bezoeken deze week'],[/^Relance prévue le /,'Opvolging gepland op '],[/ \(en retard\)/,' (te laat)'],[/ · pas de site/,' · geen website'],[/ · (\d+) avis/,' · $1 reviews'],[/ · jamais visité/,' · nog nooit bezocht'],[/(\d+) avis Google/,'$1 Google-reviews'],[/^À compléter : /,'Nog aan te vullen: '],[/Site web inconnu/,'Website onbekend'],[/Avis Google manquants/,'Google-reviews ontbreken'],[/Environnement non renseigné/,'Omgeving niet ingevuld'],[/ · visité /,' · bezocht '],[/^Visité(?= ·|$)/,'Bezocht'],[/^Intéressé(?= ·|$)/,'Geïnteresseerd'],[/^Essai en cours(?= ·|$)/,'Proefperiode'],[/— Pas là/,'— Niet aanwezig'],[/— Parlé au gérant/,'— Met manager gesproken'],[/— Intéressé/,'— Geïnteresseerd'],[/— RDV pris/,'— Afspraak gemaakt'],[/— Pas intéressé/,'— Niet geïnteresseerd'],[/\(sans note\)/,'(geen notitie)'],[/(· |— )par /,'$1door '],[/(\d+) résultats/,'$1 resultaten'],[/(\d+) nouveaux/,'$1 nieuw'],[/^(\d+) ajoutés\./,'$1 toegevoegd.'],[/^(\d+) restaurants \?$/,'$1 restaurants toevoegen?']);
 let lang = localStorage.getItem('at_lang') || 'nl';
 function trNl(s) {
   const k = s.trim(); if (!k) return s;

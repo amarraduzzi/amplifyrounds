@@ -46,3 +46,7 @@ No SQL needed. Tap the score number next to a restaurant to see why; "Réglages 
 ## Update 4: dagadvies (tab "Aujourd'hui / Vandaag")
 
 No SQL needed. Pick available hours (about 2 stops per hour). Advice = due follow-ups first, then best-scoring restaurants that are close together and not visited in the last 7 days, each with a short pitch tip. "In mijn ronde zetten" fills the route and calculates it.
+
+## Update 5: eigen tabbladen en cijfers
+
+No SQL needed. Tabs: Vandaag, Restaurants, Cijfers, Kaart (map + route). On phones each tab is a full screen; the map only shows in the Kaart tab. Cijfers: funnel, visits per week and person, districts, objections, product interest.
