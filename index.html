@@ -613,7 +613,7 @@ function parseCSV(text) {
   if (cur || row.length) { row.push(cur); out.push(row); }
   return out.filter(r => r.some(x => x.trim()));
 }
-const ALIAS = { name: ['name', 'nom', 'restaurant'], address: ['address', 'adresse'], district: ['district', 'quartier', 'wijk'], phone: ['phone', 'telephone', 'téléphone', 'tel', 'tél'], lat: ['lat', 'latitude'], lng: ['lng', 'lon', 'long', 'longitude'], status: ['status', 'statut'], maps: ['maps', 'lien', 'link', 'url'], rating: ['rating', 'google_rating', 'g_rating', 'note'], reviews: ['reviews', 'review_count', 'user_ratings_total', 'google_reviews', 'g_reviews', 'avis', 'nb_avis'], website: ['website', 'site web', 'site_web', 'siteweb', 'site'], kind: ['type', 'kind'] };
+const ALIAS = { name: ['name', 'nom', 'restaurant'], address: ['address', 'adresse'], district: ['district', 'quartier', 'wijk'], phone: ['phone', 'telephone', 'téléphone', 'tel', 'tél'], lat: ['lat', 'latitude'], lng: ['lng', 'lon', 'long', 'longitude'], status: ['status', 'statut'], maps: ['maps', 'lien', 'link', 'url'], rating: ['rating', 'google_rating', 'g_rating', 'note'], reviews: ['reviews', 'review_count', 'user_ratings_total', 'google_reviews', 'g_reviews', 'avis', 'nb_avis'], website: ['website', 'site web', 'site_web', 'siteweb', 'site'], kind: ['type', 'kind'], wstatus: ['website_status', 'site_status', 'statut_site'], next_step: ['next_step', 'prochaine etape', 'prochaine étape', 'volgende stap'], next_contact: ['next_contact', 'relance', 'volgend contact'], last_visit: ['last_visit', 'last_visit_at', 'dernier passage', 'laatste bezoek'] };
 $('#btnImport').onclick = () => $('#dlgImport').showModal();
 $('#btnImportCancel').onclick = () => $('#dlgImport').close();
 $('#fImport').addEventListener('submit', async () => {
@@ -626,12 +626,12 @@ $('#fImport').addEventListener('submit', async () => {
   if (col.name < 0) return toast('Colonne « name » introuvable.', 4500);
   const get = (r, k) => col[k] >= 0 ? (r[col[k]] || '').trim() : '';
 const nz = v => { const x = parseFloat(String(v).replace(',', '.')); return isNaN(x) ? null : x; };
-const extra = r => ({ g_rating: nz(get(r, 'rating')), g_reviews: nz(get(r, 'reviews')) == null ? null : Math.round(nz(get(r, 'reviews'))), website_status: get(r, 'website') ? 'yes' : (col.website >= 0 ? 'no' : 'unknown'), kind: ['restaurant', 'cafe', 'snack', 'patisserie'].includes(get(r, 'kind').toLowerCase()) ? get(r, 'kind').toLowerCase() : null });
+const extra = r => ({ g_rating: nz(get(r, 'rating')), g_reviews: nz(get(r, 'reviews')) == null ? null : Math.round(nz(get(r, 'reviews'))), website_status: ['yes', 'no', 'unknown'].includes(get(r, 'wstatus').toLowerCase()) ? get(r, 'wstatus').toLowerCase() : (get(r, 'website') ? 'yes' : (col.website >= 0 ? 'no' : 'unknown')), kind: ['restaurant', 'cafe', 'snack', 'patisserie'].includes(get(r, 'kind').toLowerCase()) ? get(r, 'kind').toLowerCase() : null });
   const allItems = table.slice(1).map(r => {
     let lat = parseFloat(get(r, 'lat').replace(',', '.')), lng = parseFloat(get(r, 'lng').replace(',', '.'));
     if (isNaN(lat) || isNaN(lng)) { const p = parseMapsLink(get(r, 'maps')); lat = p?.lat ?? null; lng = p?.lng ?? null; }
     const st = get(r, 'status').toLowerCase();
-    return { id: uid(), name: get(r, 'name'), address: get(r, 'address') || null, district: get(r, 'district') || null, phone: get(r, 'phone') || null, lat, lng, status: STATUS[st] ? st : 'new', ...extra(r) };
+    return { id: uid(), name: get(r, 'name'), address: get(r, 'address') || null, district: get(r, 'district') || null, phone: get(r, 'phone') || null, lat, lng, status: STATUS[st] ? st : 'new', next_step: get(r, 'next_step') || null, next_contact: /^\d{4}-\d{2}-\d{2}$/.test(get(r, 'next_contact')) ? get(r, 'next_contact') : null, last_visit_at: /^\d{4}-\d{2}-\d{2}$/.test(get(r, 'last_visit')) ? get(r, 'last_visit') + 'T12:00:00Z' : null, ...extra(r) };
   }).filter(r => r.name);
 const seen = new Set(rows.map(x => norm(x.name))); let skipped = 0;
 const items = allItems.filter(r => {

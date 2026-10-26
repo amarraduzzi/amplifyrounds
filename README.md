@@ -50,3 +50,9 @@ No SQL needed. Pick available hours (about 2 stops per hour). Advice = due follo
 ## Update 5: eigen tabbladen en cijfers
 
 No SQL needed. Tabs: Vandaag, Restaurants, Cijfers, Kaart (map + route). On phones each tab is a full screen; the map only shows in the Kaart tab. Cijfers: funnel, visits per week and person, districts, objections, product interest.
+
+## Update 6: import uit Notion
+
+No SQL needed. Upload `index.html` and `README.md`, then import `notion-import.csv` via "Importeren" (119 restaurants uit Amars Notion-lijst; Etoile du chef en Lina gluten free zijn overgeslagen omdat ze niet bestaan).
+The CSV import now also reads these optional columns: `website_status` (yes / no / unknown), `next_step`, `next_contact` (YYYY-MM-DD) and `last_visit` (YYYY-MM-DD).
+The import has no coordinates: the app looks them up by name and district (about 1 per second, so ~2 minutes). Check the positions afterwards; wrong ones can be fixed with "Op de kaart plaatsen".
