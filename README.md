@@ -61,3 +61,7 @@ The import has no coordinates: the app looks them up by name and district (about
 
 No SQL needed. The CSV import has a checkbox "Restaurants die al in de lijst staan bijwerken" (on by default): for restaurants already in the list (same name) it fills in empty fields only (status if still "te bezoeken", next step, follow-up date, last visit, website, district). Nothing already filled in is overwritten and clients are never changed.
 New tab "Overzicht": counts per status (tap to filter the list), follow-ups due, and the best-scoring restaurants not yet visited.
+
+## Update 8: nieuwe onderste menubalk
+
+No SQL needed. The bottom tab bar on phones now has icons, more space, a highlighted active tab and a rounded floating look. The route counter on "Kaart" only shows when stops are selected.
