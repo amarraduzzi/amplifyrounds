@@ -69,3 +69,7 @@ No SQL needed. The bottom tab bar on phones now has icons, more space, a highlig
 ## Update 9: computerweergave
 
 No SQL needed. On a computer the list area is now wide (the map is a narrower panel on the right, about 30% of the screen), the tabs have icons above their names and fit without being cut off, and the content is centred with a maximum width.
+
+## Update 10: online zoeken uitgebreid
+
+No SQL needed. The button "Restaurants, cafés en patisserieën in de regio" now also finds cafés, ice cream shops, food courts, bakeries and pastry/chocolate shops (before: only restaurants and fast food). Type (restaurant, café, snack, pâtisserie) is filled in automatically. Places already in the list are marked "Staat al in de lijst" and are never added twice (same name, or similar name within 40 m).
