@@ -732,6 +732,10 @@ if (!items.length) return toast(`0 importés, ${skipped} déjà dans la liste${u
 });
 
 // ====== Routing ======
+function gPt(r) { // Google Maps point: name + address shows the restaurant name; otherwise coordinates
+  if (r && r.name && r.address) return encodeURIComponent([r.name, r.address].join(', '));
+  return r.lat + ',' + r.lng;
+}
 function nearestNeighbor(pts) { // pts[0] = start; returns order of indices (without 0)
   const left = pts.map((_, i) => i).slice(1), order = []; let cur = 0;
   while (left.length) { let b = 0; left.forEach((idx, k) => { if (haversine(pts[cur], pts[idx]) < haversine(pts[cur], pts[left[b]])) b = k; }); cur = left.splice(b, 1)[0]; order.push(cur); }
@@ -739,7 +743,8 @@ function nearestNeighbor(pts) { // pts[0] = start; returns order of indices (wit
 }
 function twoOpt(pts, order, loop) {
   const seq = [0, ...order].concat(loop ? [0] : []);
-  const d = (a, b) => haversine(pts[seq[a]], pts[seq[b]]);
+  const w = loop ? 1 : 3; // open route: first leg counts extra, so the nearest stops come first
+  const d = (a, b) => haversine(pts[seq[a]], pts[seq[b]]) * (seq[a] === 0 || seq[b] === 0 ? w : 1);
   let improved = true;
   while (improved) {
     improved = false;
@@ -792,8 +797,9 @@ $('#btnGmaps').onclick = () => {
   const pt = p => p.lat + ',' + p.lng, o = route.order;
   const loop = $('#loop').checked;
   const dest = loop ? start : o[o.length - 1], via = loop ? o : o.slice(0, -1);
+  const gp = p => p === start ? pt(p) : gPt(p);
   if (via.length > 9) toast('Google Maps accepte environ 10 arrêts : le reste est ignoré.', 5000);
-  window.open(`https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=${pt(start)}&destination=${pt(dest)}&waypoints=${via.slice(0, 9).map(pt).join('|')}`, '_blank');
+  window.open(`https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=${pt(start)}&destination=${gp(dest)}&waypoints=${via.slice(0, 9).map(gp).join('|')}`, '_blank');
 };
 window.wazeTo = id => { const r = rows.find(x => x.id === id); if (r) window.open(`https://waze.com/ul?ll=${r.lat},${r.lng}&navigate=yes`, '_blank'); };
 
@@ -1025,9 +1031,9 @@ $('#today').addEventListener('click', async e => {
   if (t.closest('#dLocate')) return locateMissing();
   if (t.closest('#dGmaps')) {
     const o = (lastPlan?.items || []).map(x => x.r); if (!o.length) return;
-    const pt = p => p.lat + ',' + p.lng, loop = $('#loop').checked, dest = loop ? start : o[o.length - 1], via = loop ? o : o.slice(0, -1);
+    const pt = p => p.lat + ',' + p.lng, gp = p => p === start ? pt(p) : gPt(p), loop = $('#loop').checked, dest = loop ? start : o[o.length - 1], via = loop ? o : o.slice(0, -1);
     if (via.length > 9) toast('Google Maps accepte environ 10 arrêts : le reste est ignoré.', 5000);
-    return void window.open(`https://www.google.com/maps/dir/?api=1&travelmode=${day.mode === 'walk' ? 'walking' : 'driving'}&origin=${pt(start)}&destination=${pt(dest)}&waypoints=${via.slice(0, 9).map(pt).join('|')}`, '_blank');
+    return void window.open(`https://www.google.com/maps/dir/?api=1&travelmode=${day.mode === 'walk' ? 'walking' : 'driving'}&origin=${pt(start)}&destination=${gp(dest)}&waypoints=${via.slice(0, 9).map(gp).join('|')}`, '_blank');
   }
   if (t.closest('#btnPlanGo')) {
     selected = new Set(lastPlan.items.map(p => p.r.id)); saveSel(); route = null;
