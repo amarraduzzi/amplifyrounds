@@ -28,3 +28,9 @@ The app has an FR | NL switch in the header (default: Dutch). The choice is reme
 ## Online zoeken / Recherche en ligne
 
 "Online zoeken" (top of the list) searches OpenStreetMap by name in Rabat, Salé and Témara, or lists all restaurants in the area (Overpass) and adds them with one tap. Restaurants already in the list are marked and skipped.
+
+## Update 1: huisstijl, mobiele tabs, lead score
+
+Run `schema-update-1.sql` in Supabase (SQL Editor) BEFORE uploading index.html.
+New fields per restaurant: type, website yes/no, Google rating and review count, environment. The list is sorted by a provisional lead score (no website, Google reviews, not a difficult area).
+CSV import also reads rating / reviews / website / type columns when present.
