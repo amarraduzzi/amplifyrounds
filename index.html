@@ -147,6 +147,55 @@ header h1{font-size:26px}dialog h2{font-size:24px}
 #toast{bottom:calc(94px + env(safe-area-inset-bottom))}
 }
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+
+/* ===== Vandaag / Aujourd’hui : mise en page compacte ===== */
+#paneToday{background:var(--bg)}
+#today{display:grid;gap:12px;padding-top:12px;padding-bottom:24px}
+#today .strip{display:flex;flex-wrap:wrap;gap:6px}
+#today .pill{font-size:12.5px;line-height:1;padding:7px 11px;border-radius:999px;background:#fff;border:1px solid var(--line);color:var(--mute)}
+#today .pill.hot{background:#FBEAE8;border-color:#EBC3BF;color:var(--danger);font-weight:600}
+#today .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;gap:12px}
+#today .find{display:flex;gap:8px}
+#today .find input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;min-height:44px}
+#today .from{display:flex;flex-wrap:wrap;align-items:center;gap:0 8px;font-size:13px;color:var(--mute)}
+#today .lks{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:0 18px;padding-left:24px}
+#today .from svg{width:16px;height:16px;flex:none;fill:none;stroke:var(--accent);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#today .from .fl{flex:1 1 0;min-width:0;color:var(--ink);font-weight:600}
+#today .lk{background:none;border:0;padding:8px 0;color:var(--accent);font-weight:600;font-size:13px;text-decoration:none}
+#today select{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;min-height:44px}
+#today .lbl{font-size:13px;color:var(--mute);margin-bottom:5px}
+#today .two2{display:flex;flex-wrap:wrap;gap:10px 16px}
+#today .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+#today .seg button{border:0;border-right:1px solid var(--line);background:#fff;padding:0 14px;min-height:42px;font-weight:600;color:var(--mute)}
+#today .seg button:last-child{border-right:0}
+#today .seg button.on{background:var(--ink);color:#fff}
+#today .tgs{display:grid;gap:0}
+#today .tg{display:flex;align-items:center;gap:10px;min-height:40px;cursor:pointer}
+#today .tg input{appearance:none;-webkit-appearance:none;margin:0;flex:none;width:40px;height:24px;border-radius:12px;background:#C5CEC8;position:relative;cursor:pointer;transition:background .15s}
+#today .tg input::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px #0003;transition:transform .15s}
+#today .tg input:checked{background:var(--green)}
+#today .tg input:checked::after{transform:translateX(16px)}
+#today .miss{border:1px dashed #9FB0BB;background:transparent;border-radius:10px;min-height:44px}
+#today .plan{background:var(--ink);color:#fff;border-radius:14px;padding:14px;display:grid;gap:12px}
+#today .summary{font-size:28px;font-stretch:62%;font-weight:800;line-height:1.05;letter-spacing:.01em}
+#today .plan .line{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+#today .plan .btn{background:transparent;border-color:#ffffff66;color:#fff;border-radius:10px;min-height:46px}
+#today .plan .btn.primary{background:var(--green);border-color:var(--green);color:var(--ink);font-weight:700}
+#today .stops{background:#fff;border:1px solid var(--line);border-radius:14px;padding:4px 14px}
+#today .stop{grid-template-columns:30px 1fr;gap:12px;padding:12px 0}
+#today .stop:first-child{padding-bottom:4px;align-items:center}
+#today .stop::before{left:14px;top:42px;bottom:-12px;border-left:2px solid var(--line)}
+#today .num{width:30px;height:30px}
+#today .stop.fu .num{background:#fff;color:var(--ink);box-shadow:inset 0 0 0 2px var(--green)}
+#today .stop.fu.late .num{color:var(--danger);box-shadow:inset 0 0 0 2px var(--danger)}
+#today .stop b{display:block;font-size:15.5px;line-height:1.25}
+#today .stop .leg{font-size:12.5px;margin-top:2px}
+#today .tip{margin-top:8px;background:none;border-left:3px solid var(--green);border-radius:0;padding:1px 0 1px 10px;color:var(--mute);font-size:12.5px}
+#today .stop .acts{margin-top:10px}
+#today .btn.sm{padding:0 14px;min-height:40px;border-radius:10px}
+#today .btn.go{border-color:var(--accent);color:var(--accent);font-weight:600}
+#today .empty{background:#fff;border:1px dashed var(--line);border-radius:14px;padding:18px}
+@media (prefers-reduced-motion:reduce){#today .tg input,#today .tg input::after{transition:none}}
 </style>
 </head>
 <body>
@@ -918,30 +967,33 @@ function renderToday() {
   const el = $('#today'); if (!el || geoBusy) return;
   const today = new Date().toISOString().slice(0, 10), now = Date.now();
   const live = rows.filter(r => r.status !== 'client' && r.status !== 'lost');
-  const stat = `${live.filter(r => r.next_contact && r.next_contact <= today).length} à relancer · ${live.filter(r => !r.last_visit_at).length} pas encore visités · ${rows.filter(r => r.last_visit_at && now - new Date(r.last_visit_at) < 7 * 864e5).length} visites cette semaine`;
+  const nDue = live.filter(r => r.next_contact && r.next_contact <= today).length, nNew = live.filter(r => !r.last_visit_at).length,
+    nWeek = rows.filter(r => r.last_visit_at && now - new Date(r.last_visit_at) < 7 * 864e5).length;
   const regs = regionOptions(), missing = rows.filter(r => r.lat == null).length, sl = startLabel();
   if (day.region && !regs.some(o => o.k === day.region)) day.region = '';
   lastPlan = planDay();
   const P = lastPlan, tog = (k, t) => `<label class="tg"><input type="checkbox" data-t="${k}" ${day[k] ? 'checked' : ''}><span>${t}</span></label>`;
-  el.innerHTML = `<div class="route-box">
-<div><div class="lbl">Point de départ</div>
-<div class="line"><input id="dAddr" type="search" placeholder="Adresse ou quartier" value="${esc(day.addr)}" style="flex:1 1 160px;min-width:0;border:1px solid var(--line);border-radius:6px;padding:8px 10px"><button class="btn" id="dFind" type="button">Chercher</button><button class="btn" id="dGeo" type="button">Ma position</button></div>
-<div class="stat" style="margin-top:6px"><span>${sl ? 'Départ : ' + esc(sl) : 'Départ : repère sur la carte (Agdal par défaut)'}</span><a href="#" id="dPin">Déplacer sur la carte</a></div></div>
-<div><div class="lbl">Région</div><select id="dRegion" style="width:100%;border:1px solid var(--line);border-radius:6px;padding:9px 10px;background:#fff"><option value="">Peu importe, le plus proche du départ</option>${regs.map(o => `<option value="${esc(o.k)}" ${o.k === day.region ? 'selected' : ''}>${esc(o.label)} (${o.n})</option>`).join('')}</select></div>
-<div><div class="lbl">Nombre d’arrêts</div><div class="chips" id="dN">${[6, 8, 12, 16].map(h => `<button type="button" data-n="${h}" class="${h === day.n ? 'on' : ''}">${h}</button>`).join('')}</div></div>
-<div><div class="lbl">Déplacement</div><div class="chips" id="dMode"><button type="button" data-m="walk" class="${day.mode === 'walk' ? 'on' : ''}">À pied</button><button type="button" data-m="car" class="${day.mode === 'car' ? 'on' : ''}">En voiture</button></div></div>
-${tog('newOnly', 'Seulement nouveaux et fort potentiel')}${tog('followUps', 'Inclure les relances')}
-${missing ? `<button class="btn" id="dLocate" type="button">Chercher les positions manquantes (${missing})</button>` : ''}
-<div class="stat">${stat}</div>
-${P.items.length ? `<div class="summary">${P.items.length} arrêts · ${km(P.dist)} · ≈ ${mins(P.dur)}</div>` : ''}
-<div class="line"><button class="btn primary" id="btnPlanGo" ${P.items.length ? '' : 'disabled'}>Mettre dans ma tournée</button><button class="btn" id="dGmaps" type="button" ${P.items.length ? '' : 'disabled'}>Ouvrir dans Google Maps</button></div></div>` +
-  (P.items.length ? `<ol class="stops">${P.items.map(({ r, due }, i) => {
+  const seg = (a, items, cur) => items.map(([v, t]) => `<button type="button" data-${a}="${v}" aria-pressed="${String(v) === String(cur)}" class="${String(v) === String(cur) ? 'on' : ''}">${t}</button>`).join('');
+  const pin = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg>';
+  const stops = P.items.length ? `<ol class="stops"><li class="stop"><span class="num start">D</span><div><b>Départ</b></div></li>${P.items.map(({ r, due }, i) => {
     const v = r.g_reviews, late = due && r.next_contact < today;
     const why = due ? `Relance prévue le ${fmtD(r.next_contact)}${late ? ' (en retard)' : ''}${r.next_step ? ' : ' + esc(r.next_step) : ''}`
       : `Score ${leadScore(r)}${r.website_status === 'no' ? ' · pas de site' : ''}${v ? ' · ' + v + ' avis' : ''}${r.last_visit_at ? '' : ' · jamais visité'}`;
-    return `<li class="stop"><span class="num">${i + 1}</span><div><b>${esc(r.name)}</b><div class="leg ${late ? 'late' : ''}">${esc(r.district || '')}${r.district ? ' · ' : ''}${why}</div><div class="tip">${tipFor(r)}</div></div><div class="acts"><button class="btn" onclick="wazeTo('${r.id}')">Waze</button><button class="btn" onclick="openVisit('${r.id}')">Visite</button></div></li>`;
+    return `<li class="stop${due ? ' fu' : ''}${late ? ' late' : ''}"><span class="num">${i + 1}</span><div><b>${esc(r.name)}</b><div class="leg ${late ? 'late' : ''}">${esc(r.district || '')}${r.district ? ' · ' : ''}${why}</div><div class="tip">${tipFor(r)}</div><div class="acts"><button class="btn sm" onclick="wazeTo('${r.id}')">Waze</button><button class="btn sm go" onclick="openVisit('${r.id}')">Visite</button></div></div></li>`;
   }).join('')}</ol>${P.items.length < day.n ? `<div class="empty">Plus de restaurants ne correspondent pas aux filtres${missing ? ' (certains n’ont pas encore de position)' : ''}. Essayez une autre région ou désactivez « nouveaux et fort potentiel ».</div>` : ''}`
-  : `<div class="empty">${rows.length ? 'Aucun restaurant ne correspond. Essayez une autre région, désactivez « nouveaux et fort potentiel »' + (missing ? ' ou cherchez les positions manquantes.' : '.') : 'Ajoutez des restaurants avec une position (liste, import ou recherche en ligne) pour recevoir un conseil.'}</div>`);
+  : `<div class="empty">${rows.length ? 'Aucun restaurant ne correspond. Essayez une autre région, désactivez « nouveaux et fort potentiel »' + (missing ? ' ou cherchez les positions manquantes.' : '.') : 'Ajoutez des restaurants avec une position (liste, import ou recherche en ligne) pour recevoir un conseil.'}</div>`;
+  el.innerHTML = `<div class="strip"><span class="pill${nDue ? ' hot' : ''}">${nDue} à relancer</span><span class="pill">${nNew} pas encore visités</span><span class="pill">${nWeek} visites cette semaine</span></div>
+<section class="card">
+<div class="find"><input id="dAddr" type="search" aria-label="Adresse ou quartier" placeholder="Adresse ou quartier" value="${esc(day.addr)}"><button class="btn" id="dFind" type="button">Chercher</button></div>
+<div class="from">${pin}<span class="fl">${sl ? 'Départ : ' + esc(sl) : 'Départ : repère sur la carte (Agdal par défaut)'}</span><span class="lks"><button class="lk" id="dGeo" type="button">Ma position</button><a href="#" class="lk" id="dPin">Déplacer sur la carte</a></span></div>
+<label><div class="lbl">Région</div><select id="dRegion"><option value="">Peu importe, le plus proche du départ</option>${regs.map(o => `<option value="${esc(o.k)}" ${o.k === day.region ? 'selected' : ''}>${esc(o.label)} (${o.n})</option>`).join('')}</select></label>
+<div class="two2"><div><div class="lbl">Nombre d’arrêts</div><div class="seg" id="dN">${seg('n', [6, 8, 12, 16].map(h => [h, h]), day.n)}</div></div>
+<div><div class="lbl">Déplacement</div><div class="seg" id="dMode">${seg('m', [['walk', 'À pied'], ['car', 'En voiture']], day.mode)}</div></div></div>
+<div class="tgs">${tog('newOnly', 'Seulement nouveaux et fort potentiel')}${tog('followUps', 'Inclure les relances')}</div>
+${missing ? `<button class="btn miss" id="dLocate" type="button">Chercher les positions manquantes (${missing})</button>` : ''}
+</section>
+${P.items.length ? `<section class="plan"><div class="summary">${P.items.length} arrêts · ${km(P.dist)} · ≈ ${mins(P.dur)}</div><div class="line"><button class="btn primary" id="btnPlanGo">Mettre dans ma tournée</button><button class="btn" id="dGmaps" type="button">Ouvrir dans Google Maps</button></div></section>` : ''}
+${stops}`;
 }
 async function locateMissing() {
   const todo = rows.filter(r => r.lat == null); if (!todo.length) return;
