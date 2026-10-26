@@ -79,6 +79,10 @@ dialog input,dialog select,dialog textarea{border:1px solid var(--line);border-r
   .side{border-right:0;border-top:1px solid var(--line)}
 }
 
+.online{padding:10px 14px 0}.online .btn{width:100%}
+.sres{max-height:48dvh;overflow:auto;border:1px solid var(--line);border-radius:8px;background:#fff}
+.sr{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:9px 10px;border-bottom:1px solid var(--line)}
+.sr:last-child{border-bottom:0}.sr .meta{color:var(--mute);font-size:13px}.sr .btn{flex:none}
 .lang{display:flex;border:1px solid #ffffff88;border-radius:8px;overflow:hidden}
 .lang button{border:0;background:transparent;color:#fff;padding:6px 12px;font-weight:700;min-width:46px;min-height:36px;border-radius:0}
 .lang button.on{background:#fff;color:var(--ink)}
@@ -125,7 +129,8 @@ dialog form{max-height:94dvh;padding-bottom:max(18px,env(safe-area-inset-bottom)
     </div>
 
     <section class="pane" id="paneList">
-      <div class="filters">
+      <div class="online"><button class="btn primary" id="btnOnline" type="button">Chercher en ligne</button></div>
+<div class="filters">
         <input id="q" type="search" placeholder="Chercher un restaurant" aria-label="Chercher">
         <select id="fStatus" aria-label="Statut"></select>
         <select id="fDistrict" aria-label="Quartier"></select>
@@ -230,6 +235,18 @@ dialog form{max-height:94dvh;padding-bottom:max(18px,env(safe-area-inset-bottom)
       <button class="btn primary" value="ok">Importer</button>
     </div>
   </form>
+</dialog>
+
+<!-- Online search -->
+<dialog id="dlgSearch">
+<form method="dialog" id="fSearch" onsubmit="return false">
+<h2>Recherche en ligne</h2>
+<div style="display:flex;gap:8px"><input id="sq" type="search" style="flex:1;min-width:0" placeholder="Nom du restaurant" aria-label="Nom du restaurant"><button type="button" class="btn primary" id="btnSq">Chercher</button></div>
+<button type="button" class="btn" id="btnArea">Tous les restaurants de la zone</button>
+<div id="sinfo" class="meta" style="color:var(--mute);font-size:13px"></div>
+<div id="sres" class="sres" hidden></div>
+<div class="foot"><button type="button" class="btn" id="btnAddAll" hidden>Tout ajouter</button><button type="button" class="btn" id="btnSClose">Fermer</button></div>
+</form>
 </dialog>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
@@ -380,7 +397,7 @@ function renderMarkers() {
 function renderList() {
   const items = filtered(), today = new Date().toISOString().slice(0, 10);
   if (!rows.length) { $('#list').innerHTML = '<div class="empty">Aucun restaurant pour l’instant. Ajoutez-en un ou importez une liste CSV.</div>'; return; }
-  if (!items.length) { $('#list').innerHTML = '<div class="empty">Aucun résultat pour ces filtres.</div>'; return; }
+  if (!items.length) { $('#list').innerHTML = '<div class="empty">Aucun résultat pour ces filtres.<br><br><button class="btn primary" onclick="openSearch($(\'#q\').value)">Chercher en ligne</button></div>'; return; }
   $('#list').innerHTML = items.map(r => {
     const noPos = r.lat == null || r.lng == null;
     const due = r.next_contact && r.next_contact <= today;
@@ -652,6 +669,74 @@ async function boot() {
   try { await reload(); } catch (err) { toast('Chargement impossible : ' + err.message, 6000); }
   if (!useDb && !rows.length) toast('Mode local : les données restent dans ce navigateur.', 5000);
 }
+// ====== Recherche en ligne (OpenStreetMap) ======
+const BBOX = { s: 33.85, w: -7.05, n: 34.12, e: -6.60 }; // Témara · Rabat · Salé
+let sres = [], smode = 'name';
+const isDup = r => { const k = norm(r.name); return rows.some(x => norm(x.name) === k || (x.lat != null && haversine(x, r) < 40 && (norm(x.name).includes(k) || k.includes(norm(x.name))))); };
+function fromNom(o) {
+  const a = o.address || {}, t = o.extratags || {};
+  const district = a.suburb || a.neighbourhood || a.city_district || a.quarter || a.town || a.city || null;
+  const street = [a.house_number, a.road].filter(Boolean).join(' ');
+  return { name: o.name || (o.display_name || '').split(',')[0], district, address: [street, district].filter(Boolean).join(', ') || null, phone: t.phone || t['contact:phone'] || null, lat: +o.lat, lng: +o.lon };
+}
+function fromOverpass(e) {
+  const t = e.tags || {}; if (!t.name) return null;
+  const lat = e.lat ?? e.center?.lat, lng = e.lon ?? e.center?.lon; if (lat == null) return null;
+  const district = t['addr:suburb'] || t['addr:city'] || null, street = [t['addr:housenumber'], t['addr:street']].filter(Boolean).join(' ');
+  return { name: t.name, district, address: [street, district].filter(Boolean).join(', ') || null, phone: t.phone || t['contact:phone'] || null, lat, lng };
+}
+function renderSearch() {
+  const toks = smode === 'area' ? norm($('#sq').value).split(/\s+/).filter(Boolean) : [];
+  const shown = sres.filter(r => toks.every(t => norm(r.name + ' ' + (r.district || '')).includes(t)));
+  const fresh = shown.filter(r => !isDup(r)).length;
+  $('#sres').hidden = !shown.length;
+  $('#btnAddAll').hidden = fresh < 2;
+  $('#sinfo').textContent = sres.length ? `${shown.length} résultats · ${fresh} nouveaux` : '';
+  $('#sres').innerHTML = shown.slice(0, 150).map(r => `<div class="sr"><div><b>${esc(r.name)}</b><div class="meta">${esc(r.address || r.district || '')}${r.phone ? ' · ' + esc(r.phone) : ''}</div></div>${isDup(r) ? '<span class="meta">Déjà dans la liste</span>' : `<button type="button" class="btn primary" data-i="${sres.indexOf(r)}">Ajouter</button>`}</div>`).join('');
+}
+window.openSearch = q => { $('#sq').value = q || ''; sres = []; renderSearch(); $('#sinfo').textContent = ''; $('#dlgSearch').showModal(); if (q) doNameSearch(); };
+async function doNameSearch() {
+  const q = $('#sq').value.trim(); if (!q) return;
+  smode = 'name'; $('#sinfo').textContent = 'Recherche…';
+  try {
+    const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&extratags=1&limit=25&countrycodes=ma&bounded=1&viewbox=' + [BBOX.w, BBOX.n, BBOX.e, BBOX.s].join(',') + '&q=' + encodeURIComponent(q);
+    sres = (await (await fetch(url, { headers: { 'Accept-Language': 'fr' } })).json()).map(fromNom);
+    renderSearch(); if (!sres.length) $('#sinfo').textContent = 'Aucun résultat en ligne.';
+  } catch { $('#sinfo').textContent = 'Service indisponible, réessayez.'; }
+}
+async function doAreaSearch() {
+  smode = 'area'; $('#sinfo').textContent = 'Chargement des restaurants…'; $('#sres').hidden = true;
+  const ql = `[out:json][timeout:60];nwr["amenity"~"^(restaurant|fast_food)$"](${BBOX.s},${BBOX.w},${BBOX.n},${BBOX.e});out center tags;`;
+  for (const host of ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter']) {
+    try {
+      const j = await (await fetch(host, { method: 'POST', body: 'data=' + encodeURIComponent(ql) })).json();
+      const seen = new Set();
+      sres = j.elements.map(fromOverpass).filter(r => r && !seen.has(norm(r.name) + r.lat.toFixed(3)) && seen.add(norm(r.name) + r.lat.toFixed(3))).sort((a, b) => a.name.localeCompare(b.name));
+      $('#sq').value = ''; $('#sq').focus(); return renderSearch();
+    } catch {}
+  }
+  $('#sinfo').textContent = 'Service indisponible, réessayez.';
+}
+const toRow = r => ({ id: uid(), name: r.name, district: r.district, address: r.address, phone: r.phone, lat: r.lat, lng: r.lng, status: 'new' });
+$('#btnOnline').onclick = () => openSearch($('#q').value);
+$('#btnSq').onclick = doNameSearch;
+$('#sq').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); smode === 'area' && sres.length ? renderSearch() : doNameSearch(); } });
+$('#sq').addEventListener('input', () => { if (smode === 'area' && sres.length) renderSearch(); });
+$('#btnArea').onclick = doAreaSearch;
+$('#btnSClose').onclick = () => $('#dlgSearch').close();
+$('#sres').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-i]'); if (!b) return;
+  b.disabled = true;
+  try { await store.save(toRow(sres[+b.dataset.i])); await reload(); renderSearch(); toast('Ajouté.'); } catch (err) { b.disabled = false; toast('Erreur : ' + err.message, 5000); }
+});
+$('#btnAddAll').onclick = async () => {
+  const toks = smode === 'area' ? norm($('#sq').value).split(/\s+/).filter(Boolean) : [];
+  const add = sres.filter(r => toks.every(t => norm(r.name + ' ' + (r.district || '')).includes(t)) && !isDup(r)).map(toRow);
+  if (!add.length) return;
+  if (!confirm(add.length + ' restaurants ?')) return;
+  try { await store.saveMany(add); await reload(); renderSearch(); toast(`${add.length} ajoutés.`, 4000); } catch (err) { toast('Erreur : ' + err.message, 5000); }
+};
+
 // ====== Langue / Taal (FR / NL) ======
 const D = {
 'Importer':'Importeren','+ Ajouter':'+ Toevoegen','Sortir':'Uitloggen','Restaurants':'Restaurants','Ma tournée':'Mijn ronde',
@@ -691,7 +776,8 @@ const FRAG = [
 [/^Localisation (\d+)\/(\d+)…/,'Locatie zoeken $1/$2…'],[/^Modifier (.+)$/,'Bewerk $1'],[/^Ajouter (.+) à la tournée$/,'$1 aan ronde toevoegen'],
 [/^À visiter(?= ·|$)/,'Te bezoeken'],[/^Rendez-vous(?= ·|$)/,'Afspraak'],[/^Démo faite(?= ·|$)/,'Demo gedaan'],[/^Client(?= ·|$)/,'Klant'],[/^Pas intéressé(?= ·|$)/,'Niet geïnteresseerd']
 ];
-D['Client'] = 'Klant';
+Object.assign(D, {'Client':'Klant','Chercher en ligne':'Online zoeken','Recherche en ligne':'Online zoeken','Nom du restaurant':'Naam restaurant','Tous les restaurants de la zone':'Alle restaurants in de regio','Fermer':'Sluiten','Ajouter':'Toevoegen','Déjà dans la liste':'Staat al in de lijst','Tout ajouter':'Alles toevoegen','Ajouté.':'Toegevoegd.','Aucun résultat en ligne.':'Niets gevonden.','Chargement des restaurants…':'Restaurants laden…','Service indisponible, réessayez.':'Service niet beschikbaar, probeer het later opnieuw.'});
+FRAG.push([/(\d+) résultats/,'$1 resultaten'],[/(\d+) nouveaux/,'$1 nieuw'],[/^(\d+) ajoutés\./,'$1 toegevoegd.'],[/^(\d+) restaurants \?$/,'$1 restaurants toevoegen?']);
 let lang = localStorage.getItem('at_lang') || 'nl';
 function trNl(s) {
   const k = s.trim(); if (!k) return s;

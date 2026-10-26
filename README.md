@@ -24,3 +24,7 @@ The Supabase key in `index.html` is a publishable key. Never put the secret/serv
 ## Taal / Langue
 
 The app has an FR | NL switch in the header (default: Dutch). The choice is remembered per device.
+
+## Online zoeken / Recherche en ligne
+
+"Online zoeken" (top of the list) searches OpenStreetMap by name in Rabat, Salé and Témara, or lists all restaurants in the area (Overpass) and adds them with one tap. Restaurants already in the list are marked and skipped.
