@@ -73,3 +73,8 @@ No SQL needed. On a computer the list area is now wide (the map is a narrower pa
 ## Update 10: online zoeken uitgebreid
 
 No SQL needed. The button "Restaurants, cafés en patisserieën in de regio" now also finds cafés, ice cream shops, food courts, bakeries and pastry/chocolate shops (before: only restaurants and fast food). Type (restaurant, café, snack, pâtisserie) is filled in automatically. Places already in the list are marked "Staat al in de lijst" and are never added twice (same name, or similar name within 40 m).
+
+## Update 11: slimme route op Vandaag
+
+No SQL needed. The tab "Vandaag" now builds a route for you: choose a starting point (address or neighbourhood, "Mijn locatie", or move the pin on the map), a region (or "doesn't matter, closest to my start"), the number of stops (6, 8, 12, 16) and walking or driving. Two switches: "Alleen nieuwe en hoge potentie" (never visited, status "te bezoeken", lead score 55 or higher) and "Opvolgingen meenemen" (due follow-ups, at most a third of the stops; without a region only those within 6 km of the start). The app picks stops that are close together and orders them shortest-first, with distance and time. Buttons: "In mijn ronde zetten" (calculates the real route on the map tab), "Openen in Google Maps" and Waze per stop. The button "Ontbrekende posities opzoeken" finds map positions for restaurants that have none (about 1 per second); those then take part in the route.
+
