@@ -156,7 +156,11 @@ header h1{font-size:26px}dialog h2{font-size:24px}
 #today .pill.hot{background:#FBEAE8;border-color:#EBC3BF;color:var(--danger);font-weight:600}
 #today .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;gap:12px}
 #today .find{display:flex;gap:8px}
-#today .find input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;min-height:44px}
+#today .find input{flex:1;min-width:0;font-size:16px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;min-height:44px}
+#today .sug{display:grid;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:-4px;background:#fff}
+#today .sug:empty{display:none}
+#today .sug button{text-align:left;background:#fff;border:0;border-bottom:1px solid var(--line);padding:12px;font-size:15px;min-height:44px;color:inherit}
+#today .sug button:last-child{border-bottom:0}
 #today .from{display:flex;flex-wrap:wrap;align-items:center;gap:0 8px;font-size:13px;color:var(--mute)}
 #today .lks{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:0 18px;padding-left:24px}
 #today .from svg{width:16px;height:16px;flex:none;fill:none;stroke:var(--accent);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -408,6 +412,21 @@ async function geocode(q) {
   const j = await r.json();
   return j[0] ? { lat: +j[0].lat, lng: +j[0].lon } : null;
 }
+
+async function suggestPlaces(q) { // typo-tolerant search (Photon), Morocco only, biased to Rabat
+  const r = await fetch('https://photon.komoot.io/api/?limit=8&lang=fr&lat=34.02&lon=-6.84&bbox=-13.5,27.5,-1,36&q=' + encodeURIComponent(q));
+  const j = await r.json(), seen = new Set();
+  return (j.features || []).filter(f => (f.properties.countrycode || 'MA') === 'MA').map(f => {
+    const p = f.properties, label = [p.name, p.district || p.city || p.county].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(', ');
+    return { lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], label };
+  }).filter(x => x.label && !seen.has(x.label) && seen.add(x.label)).slice(0, 5);
+}
+async function geocodeFuzzy(q) {
+  try { const p = await geocode(q); if (p) return p; } catch {}
+  const s = await suggestPlaces(q);
+  return s[0] ? { lat: s[0].lat, lng: s[0].lng } : null;
+}
+let sugTimer = 0, sugList = [];
 
 // ====== Data layer (Supabase or local) ======
 const useDb = !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY);
@@ -991,6 +1010,7 @@ function renderToday() {
   el.innerHTML = `<div class="strip"><span class="pill${nDue ? ' hot' : ''}">${nDue} à relancer</span><span class="pill">${nNew} pas encore visités</span><span class="pill">${nWeek} visites cette semaine</span></div>
 <section class="card">
 <div class="find"><input id="dAddr" type="search" aria-label="Adresse ou quartier" placeholder="Adresse ou quartier" value="${esc(day.addr)}"><button class="btn" id="dFind" type="button">Chercher</button></div>
+<div id="dSug" class="sug"></div>
 <div class="from">${pin}<span class="fl">${sl ? 'Départ : ' + esc(sl) : 'Départ : repère sur la carte (Agdal par défaut)'}</span><span class="lks"><button class="lk" id="dGeo" type="button">Ma position</button><a href="#" class="lk" id="dPin">Déplacer sur la carte</a></span></div>
 <label><div class="lbl">Région</div><select id="dRegion"><option value="">Peu importe, le plus proche du départ</option>${regs.map(o => `<option value="${esc(o.k)}" ${o.k === day.region ? 'selected' : ''}>${esc(o.label)} (${o.n})</option>`).join('')}</select></label>
 <div class="two2"><div><div class="lbl">Nombre d’arrêts</div><div class="seg" id="dN">${seg('n', [6, 8, 12, 16].map(h => [h, h]), day.n)}</div></div>
@@ -1022,10 +1042,12 @@ $('#today').addEventListener('click', async e => {
     if (!navigator.geolocation) return toast('Localisation non disponible.');
     return navigator.geolocation.getCurrentPosition(p => { map.setView([p.coords.latitude, p.coords.longitude], 14); setStart({ lat: p.coords.latitude, lng: p.coords.longitude }, 'Ma position'); }, () => toast('Autorisez la localisation dans le navigateur.', 4000), { enableHighAccuracy: true, timeout: 10000 });
   }
+  const sg = t.closest('button[data-sug]');
+  if (sg) { const p = sugList[+sg.dataset.sug]; if (p) { day.addr = p.label; saveDay(); map.setView([p.lat, p.lng], 14); setStart(p, p.label); } return; }
   if (t.closest('#dFind')) {
     const q = $('#dAddr').value.trim(); if (!q) return;
     day.addr = q; saveDay();
-    try { const p = await geocode(q); if (!p) return toast('Adresse introuvable. Essayez un quartier ou « Déplacer sur la carte ».', 4500); map.setView([p.lat, p.lng], 14); setStart(p, q); } catch { toast('Service indisponible, réessayez.'); }
+    try { const p = await geocodeFuzzy(q); if (!p) return toast('Adresse introuvable. Essayez un quartier ou « Déplacer sur la carte ».', 4500); map.setView([p.lat, p.lng], 14); setStart(p, q); } catch { toast('Service indisponible, réessayez.'); }
     return;
   }
   if (t.closest('#dLocate')) return locateMissing();
@@ -1044,7 +1066,17 @@ $('#today').addEventListener('change', e => {
   if (e.target.id === 'dRegion') { day.region = e.target.value; saveDay(); renderToday(); }
   else if (e.target.dataset.t) { day[e.target.dataset.t] = e.target.checked; saveDay(); renderToday(); }
 });
-$('#today').addEventListener('input', e => { if (e.target.id === 'dAddr') { day.addr = e.target.value; saveDay(); } });
+$('#today').addEventListener('input', e => {
+  if (e.target.id !== 'dAddr') return;
+  day.addr = e.target.value; saveDay();
+  clearTimeout(sugTimer); const q = day.addr.trim(), box = $('#dSug');
+  if (q.length < 3) { sugList = []; if (box) box.innerHTML = ''; return; }
+  sugTimer = setTimeout(async () => {
+    try { sugList = await suggestPlaces(q); } catch { sugList = []; }
+    const b = $('#dSug'); if (!b || $('#dAddr').value.trim() !== q) return;
+    b.innerHTML = sugList.map((p, i) => `<button type="button" data-sug="${i}">${esc(p.label)}</button>`).join('');
+  }, 400);
+});
 $('#today').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'dAddr') { e.preventDefault(); $('#dFind').click(); } });
 // keep the Vandaag tab in sync when the start pin is dragged on the map
 startMarker.on('dragend', () => { localStorage.setItem('at_start_label', ''); renderToday(); });
@@ -1171,6 +1203,7 @@ new MutationObserver(ms => ms.forEach(m => {
   else if (m.type === 'characterData') doText(m.target);
   else doEl(m.target);
 })).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTR });
+Object.assign(D, {'Adresse introuvable. Essayez un quartier ou « Déplacer sur la carte ».':'Adres niet gevonden. Probeer een wijk of « Verplaats op de kaart ».'});
 Object.assign(D, {'Point de départ':'Startpunt','Adresse ou quartier':'Adres of wijk','Chercher':'Zoeken','Région':'Regio','Peu importe, le plus proche du départ':'Maakt niet uit, dichtst bij mijn start','Nombre d’arrêts':'Aantal stops','Déplacement':'Verplaatsing','À pied':'Te voet','En voiture':'Met de auto','Seulement nouveaux et fort potentiel':'Alleen nieuwe en hoge potentie','Inclure les relances':'Opvolgingen meenemen','Déplacer sur la carte':'Verplaats op de kaart','Ouvrir dans Google Maps':'Openen in Google Maps','Départ : repère sur la carte (Agdal par défaut)':'Start: pin op de kaart (standaard Agdal)'});
 FRAG.push([/^Départ : (?=.)/,'Start: '],[/^Chercher les positions manquantes \((\d+)\)/,'Ontbrekende posities opzoeken ($1)'],[/(\d+) arrêts · /,'$1 stops · '],[/(\d+) positions trouvées, (\d+) introuvables\./,'$1 posities gevonden, $2 niet gevonden.'],[/Plus de restaurants ne correspondent pas aux filtres/,'Er zijn geen restaurants meer die aan de filters voldoen'],[/ \(certains n’ont pas encore de position\)/,' (sommige hebben nog geen positie)'],[/Essayez une autre région ou désactivez « nouveaux et fort potentiel »\./,'Probeer een andere regio of zet “alleen nieuwe en hoge potentie” uit.'],[/Aucun restaurant ne correspond\. Essayez une autre région, désactivez « nouveaux et fort potentiel »/,'Geen enkel restaurant past. Probeer een andere regio, zet “alleen nieuwe en hoge potentie” uit'],[/ ou cherchez les positions manquantes\./,' of zoek de ontbrekende posities op.'],[/Déplacez le repère D sur la carte, puis revenez sur Aujourd’hui\./,'Sleep de pin D op de kaart en ga dan terug naar Vandaag.']);
 setLang(lang);
