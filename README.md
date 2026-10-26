@@ -38,3 +38,7 @@ CSV import also reads rating / reviews / website / type columns when present.
 ## Update 2: bezoeken en pijplijn
 
 Run `schema-update-2.sql` in Supabase BEFORE uploading index.html. Visit log with outcome, contact person, interest, objection and who visited; pipeline statuses (to visit, visited, interested, appointment, demo, trial, client, not interested); filters "to follow up" and "not yet visited"; last visit date in the list.
+
+## Update 3: lead score uitleg
+
+No SQL needed. Tap the score number next to a restaurant to see why; "Réglages du score" lets you change the weights (stored per device).
