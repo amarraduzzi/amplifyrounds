@@ -275,7 +275,8 @@ const I18N = {
     'confirm.delete': 'Supprimer ce restaurant et son historique ?', 'toast.deleted': 'Supprimé.', 'toast.visitSaved': 'Visite enregistrée.',
     'toast.noRows': 'Aucune ligne trouvée.', 'toast.noName': 'Colonne « name » introuvable.',
     'toast.locating': (i, n) => `Localisation ${i}/${n}…`,
-    'toast.imported': (n, miss) => `${n} restaurants importés${miss ? ', ' + miss + ' sans position' : ''}.`,
+    'toast.imported': (n, miss, skip) => `${n} restaurants importés${miss ? ', ' + miss + ' sans position' : ''}${skip ? ' · ' + skip + ' déjà présents (ignorés)' : ''}.`,
+    'toast.allDup': n => `Aucun nouveau restaurant : les ${n} lignes sont déjà dans la liste.`,
     'toast.pickOne': 'Choisissez au moins un restaurant.', 'toast.geoNA': 'Localisation non disponible.',
     'toast.geoDenied': 'Autorisez la localisation dans le navigateur.', 'toast.gmapsLimit': 'Google Maps accepte environ 10 arrêts : le reste est ignoré.',
     'toast.loadFail': 'Chargement impossible : ', 'toast.local': 'Mode local : les données restent dans ce navigateur.',
@@ -323,7 +324,8 @@ const I18N = {
     'confirm.delete': 'Dit restaurant en de bezoekgeschiedenis verwijderen?', 'toast.deleted': 'Verwijderd.', 'toast.visitSaved': 'Bezoek opgeslagen.',
     'toast.noRows': 'Geen rijen gevonden.', 'toast.noName': 'Kolom “name” niet gevonden.',
     'toast.locating': (i, n) => `Locaties zoeken ${i}/${n}…`,
-    'toast.imported': (n, miss) => `${n} restaurants geïmporteerd${miss ? ', ' + miss + ' zonder locatie' : ''}.`,
+    'toast.imported': (n, miss, skip) => `${n} restaurants geïmporteerd${miss ? ', ' + miss + ' zonder locatie' : ''}${skip ? ' · ' + skip + ' stonden er al (overgeslagen)' : ''}.`,
+    'toast.allDup': n => `Geen nieuwe restaurants: alle ${n} rijen staan al in de lijst.`,
     'toast.pickOne': 'Kies minstens één restaurant.', 'toast.geoNA': 'Locatie niet beschikbaar.',
     'toast.geoDenied': 'Sta locatie toe in de browser.', 'toast.gmapsLimit': 'Google Maps accepteert ongeveer 10 stops: de rest wordt genegeerd.',
     'toast.loadFail': 'Laden mislukt: ', 'toast.local': 'Lokale modus: de gegevens blijven in deze browser.',
@@ -646,13 +648,17 @@ $('#fImport').addEventListener('submit', async () => {
     const st = get(r, 'status').toLowerCase();
     return { id: uid(), name: get(r, 'name'), address: get(r, 'address') || null, district: get(r, 'district') || null, phone: get(r, 'phone') || null, lat, lng, status: STATUS[st] ? st : 'new' };
   }).filter(r => r.name);
+  const fresh = []; let skipped = 0;
+  for (const it of items) { if (alreadyListed(it, rows) || alreadyListed(it, fresh)) skipped++; else fresh.push(it); }
+  items.length = 0; items.push(...fresh);
+  if (!items.length) { toast(t('toast.allDup', skipped), 6000); return; }
   const todo = items.filter(r => r.lat == null && (r.address || r.district));
   for (let i = 0; i < todo.length; i++) {
     toast(t('toast.locating', i + 1, todo.length), 2000);
     try { const p = await geocode([todo[i].address, todo[i].district, todo[i].name].filter(Boolean).join(', ')); if (p) { todo[i].lat = p.lat; todo[i].lng = p.lng; } } catch {}
     await sleep(1100);
   }
-  try { await store.saveMany(items); await reload(); const miss = items.filter(r => r.lat == null).length; toast(t('toast.imported', items.length, miss), 5000); $('#csvText').value = ''; $('#csvFile').value = ''; }
+  try { await store.saveMany(items); await reload(); const miss = items.filter(r => r.lat == null).length; toast(t('toast.imported', items.length, miss, skipped), 7000); $('#csvText').value = ''; $('#csvFile').value = ''; }
   catch (err) { toast(t('toast.err') + err.message, 6000); }
 });
 
@@ -664,8 +670,10 @@ window.openSearch = prefill => {
   $('#srchQ').focus();
   if (prefill && $('#srchQ').value) runSearch();
 };
-function alreadyListed(p) {
-  return rows.some(r => (norm(r.name) === norm(p.name) && (r.lat == null || haversine(r, p) < 400)) || (r.lat != null && haversine(r, p) < 25 && norm(r.name).slice(0, 4) === norm(p.name).slice(0, 4)));
+const nk = x => norm(x).replace(/[^a-z0-9]/g, '');
+function sameName(a, b) { a = nk(a); b = nk(b); return !!a && !!b && (a === b || (a.length >= 5 && b.length >= 5 && (a.includes(b) || b.includes(a)))); }
+function alreadyListed(p, list = rows) {
+  return list.some(r => (sameName(r.name, p.name) && (r.lat == null || p.lat == null || haversine(r, p) < 300)) || (r.lat != null && p.lat != null && haversine(r, p) < 25 && nk(r.name).slice(0, 4) === nk(p.name).slice(0, 4)));
 }
 function renderFound() {
   $('#srchList').innerHTML = found.length ? found.map((p, i) => {

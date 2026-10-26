@@ -29,3 +29,7 @@ The app is available in French and Dutch. Use the FR/NL button in the header; th
 
 - The search box in the list filters on name, address, district, phone number and status (accents do not matter).
 - "Chercher en ligne" / "Online zoeken" searches OpenStreetMap for restaurants in Rabat, Salé and Témara and adds the chosen ones to the list with one click. Results already in the list are marked.
+
+## Import without duplicates
+
+When importing a CSV, restaurants that are already in the list (same name, or same place) are skipped automatically, so importing an overlapping list is safe.
