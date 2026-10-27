@@ -78,13 +78,3 @@ No SQL needed. The button "Restaurants, cafés en patisserieën in de regio" now
 
 No SQL needed. The tab "Vandaag" now builds a route for you: choose a starting point (address or neighbourhood, "Mijn locatie", or move the pin on the map), a region (or "doesn't matter, closest to my start"), the number of stops (6, 8, 12, 16) and walking or driving. Two switches: "Alleen nieuwe en hoge potentie" (never visited, status "te bezoeken", lead score 55 or higher) and "Opvolgingen meenemen" (due follow-ups, at most a third of the stops; without a region only those within 6 km of the start). The app picks stops that are close together and orders them shortest-first, with distance and time. Buttons: "In mijn ronde zetten" (calculates the real route on the map tab), "Openen in Google Maps" and Waze per stop. The button "Ontbrekende posities opzoeken" finds map positions for restaurants that have none (about 1 per second); those then take part in the route.
 
-
-## Update 12: sectoren, voortgang en opschonen
-
-Run `schema-update-3.sql` in Supabase BEFORE uploading `index.html` (new fields `sector`, `sector_locked`, `closed`, plus permission to move visits when merging duplicates).
-
-- **Tab "Sectoren" (Secteurs):** button "In sectoren indelen" groups all restaurants with a position into sectors of about 15 to 25 nearby places, per district (big districts are split: "Agdal 1", "Agdal 2"; tiny ones join the nearest). Each sector has a progress bar. "Afgewerkt" = visited with a clear outcome (next step or follow-up date, in discussion, client or not interested). The top card shows the overall percentage and an estimate of days left at your visits per day. Sectors you set or rename by hand are locked and survive "Opnieuw indelen". New restaurants join the sector of their nearest neighbour automatically.
-- **Focus on Vandaag:** pick "Sector in focus". The route then holds due follow-ups of that sector first, then the not-yet-visited (or visited without outcome) restaurants of the sector, and only then fills up from neighbouring sectors. Region and "alleen nieuwe en hoge potentie" are hidden while a focus is set.
-- **Restaurants tab:** new sector filter, a filter "Geen vervolg afgesproken", the sector shows in each row; the edit form has a Sector field (empty = automatic) and "Gesloten of bestaat niet meer".
-- **Gesloten:** also via the new outcome chip "Fermé" when logging a visit. Closed restaurants count nowhere, but online search and import will not add them again.
-- **Opschonen:** merges duplicates (same name nearby, or one name inside the other within 40 m; the most complete one is kept and gets the visits and empty fields of the others), finds missing positions, and lists closed restaurants (can be reopened).
