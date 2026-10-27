@@ -313,6 +313,7 @@ header h1{font-size:26px}dialog h2{font-size:24px}
 <label>Compte rendu<textarea name="note" rows="4" placeholder="Ce qui a été dit, ce qui l’intéresse, objections…"></textarea></label>
     <div class="chips" id="dates"><button type="button" data-d="1">Demain</button><button type="button" data-d="3">+3 jours</button><button type="button" data-d="7">+1 semaine</button></div>
 <label>Prochaine étape<input name="next_step" placeholder="Ex. envoyer la démo, repasser jeudi"></label>
+    <label>Heure du RDV (facultatif)<input name="next_time" type="time"></label>
     <div class="two">
       <label>Prochain contact<input name="next_contact" type="date"></label>
       <label>Statut après visite<select name="status"></select></label>
@@ -372,6 +373,7 @@ const RABAT = [34.0209, -6.8416];
 // ---- Modèles WhatsApp : modifie ici les textes et les liens (variables : {salut} {date} {site}) ----
 const WA_CFG = { site: 'https://amplifygrowthstudio.com/' };
 const WA_TPL = {
+  appt_full: "{salut} J’espère que tu vas bien 😊\n\nSuite à mon passage chez vous, je te confirme notre rendez-vous pour le {date} à {heure}.\n\nSi cet horaire ne t’arrange pas, dis-moi ce qui te convient le mieux.\n\nÀ bientôt !",
   appt_date: "{salut} J’espère que tu vas bien 😊\n\nSuite à mon passage chez vous, je te confirme notre rendez-vous pour le {date}. Peux-tu me dire à quelle heure cela t’arrange ?\n\nSi cette date ne convient pas, dis-moi ce qui te va le mieux.\n\nÀ bientôt !",
   appt_prop: "{salut} J’espère que tu vas bien 😊\n\nSuite à mon passage chez vous, je te propose que nous prenions un moment pour te présenter Amplify Growth Studio.\n\nQuel jour et quelle heure te conviendraient le mieux ?\n\nÀ bientôt !",
   info: "{salut} Merci pour ton accueil aujourd’hui 😊\n\nComme convenu, voici notre site avec quelques exemples de ce que nous développons pour les restaurants :\n\n{site}\n\nNous aidons les restaurants à mieux gérer leurs opérations, à simplifier leur travail quotidien et à développer leur présence en ligne.\n\nTu peux regarder tranquillement et on en reparle quand tu veux !",
@@ -381,8 +383,9 @@ const isMobileMA = p => /^212[67]\d{8}$/.test(waNumber(p));
 function waText(kind, f) {
   const c = (f.contact_name?.value || '').split(',')[0].trim(), nc = f.next_contact.value;
   const date = nc ? new Date(nc + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
-  const key = kind === 'appt' ? (date ? 'appt_date' : 'appt_prop') : kind;
-  return WA_TPL[key].replace('{salut}', c ? 'Salam ' + c + ' !' : 'Salam !').replace('{date}', date).replace('{site}', WA_CFG.site);
+  const tv = nc ? (f.next_time?.value || '') : '', heure = tv ? tv.slice(0, 2).replace(/^0/, '') + 'h' + (tv.slice(3, 5) === '00' ? '' : tv.slice(3, 5)) : '';
+  const key = kind === 'appt' ? (date ? (heure ? 'appt_full' : 'appt_date') : 'appt_prop') : kind;
+  return WA_TPL[key].replace('{salut}', c ? 'Salam ' + c + ' !' : 'Salam !').replace('{date}', date).replace('{heure}', heure).replace('{site}', WA_CFG.site);
 }
 const WA_INTRO = "Bonjour, c’est l’équipe Amplify. Merci pour l’échange aujourd’hui !";
 
@@ -699,7 +702,7 @@ window.openVisit = async id => {
   const r = rows.find(x => x.id === id); if (!r) return;
   visitId = id; const f = $('#fVisit'); f.reset(); document.querySelectorAll('#chips button').forEach(x => x.classList.remove('on'));
   f.status.innerHTML = Object.entries(STATUS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
-  f.status.value = r.status; f.next_step.value = r.next_step || ''; f.next_contact.value = r.next_contact || '';
+  f.status.value = r.status; f.next_step.value = r.next_step || ''; f.next_contact.value = r.next_contact || ''; f.next_time.value = r.next_time || '';
   $('#visitTitle').textContent = r.name;
   $('#btnWa').hidden = !r.phone;
   { const ok = !!r.phone && isMobileMA(r.phone); $('#waTpl').hidden = !ok; $('#waNote').hidden = !r.phone || ok; }
@@ -728,7 +731,10 @@ $('#fVisit').addEventListener('submit', async e => {
   try {
     let by = 'moi'; if (sb) { const { data } = await sb.auth.getSession(); by = (data.session?.user?.email || '').split('@')[0] || null; }
 await store.addVisit({ id: uid(), restaurant_id: r.id, note: f.note.value.trim() || null, status_after: f.status.value, outcome: f.outcome.value || null, contact_name: f.contact_name.value.trim() || null, product: f.product.value || null, objection: f.objection.value || null, visited_by: by });
-    await store.save({ id: r.id, name: r.name, status: f.status.value, next_step: f.next_step.value.trim() || null, next_contact: f.next_contact.value || null, last_visit_at: new Date().toISOString() });
+    const pt = { id: r.id, name: r.name, status: f.status.value, next_step: f.next_step.value.trim() || null, next_contact: f.next_contact.value || null, last_visit_at: new Date().toISOString() };
+    const tm = f.next_contact.value && f.next_time.value ? f.next_time.value : null;
+    try { await store.save({ ...pt, next_time: tm }); }
+    catch (err) { if (!/next_time/.test(err.message || '')) throw err; await store.save(pt); toast('Visite enregistrée, mais l’heure n’est pas sauvegardée : lance schema-update-3.sql dans Supabase.', 7000); await reload(); return; }
     await reload(); toast('Visite enregistrée.');
   } catch (err) { toast('Erreur : ' + err.message, 5000); }
 });
@@ -1192,7 +1198,7 @@ const D = {
 'Lien Google Maps (coordonnées automatiques)':'Google Maps-link (coördinaten automatisch)','Latitude':'Breedtegraad','Longitude':'Lengtegraad',
 'Trouver via l’adresse':'Zoeken via adres','Placer sur la carte':'Op de kaart plaatsen','Supprimer':'Verwijderen','Annuler':'Annuleren','Enregistrer':'Opslaan',
 'Visite':'Bezoek','Compte rendu':'Verslag','Prochaine étape':'Volgende stap','Prochain contact':'Volgend contact','Statut après visite':'Status na bezoek',
-'Suivi WhatsApp':'WhatsApp-opvolging','RDV : confirmer ou proposer':'Afspraak bevestigen of voorstellen','Infos et exemples':'Info en voorbeelden sturen','Relancer l’intérêt':'Interesse opvolgen','Numéro fixe ou non reconnu : pas de modèles WhatsApp. Le bouton Suivi WhatsApp reste disponible.':'Vast of onbekend nummer: geen WhatsApp-berichten. De knop WhatsApp-opvolging blijft beschikbaar.','Enregistrer la visite':'Bezoek opslaan','Visites précédentes':'Eerdere bezoeken',
+'Suivi WhatsApp':'WhatsApp-opvolging','Heure du RDV (facultatif)':'Tijd van de afspraak (optioneel)','RDV : confirmer ou proposer':'Afspraak bevestigen of voorstellen','Infos et exemples':'Info en voorbeelden sturen','Relancer l’intérêt':'Interesse opvolgen','Numéro fixe ou non reconnu : pas de modèles WhatsApp. Le bouton Suivi WhatsApp reste disponible.':'Vast of onbekend nummer: geen WhatsApp-berichten. De knop WhatsApp-opvolging blijft beschikbaar.','Enregistrer la visite':'Bezoek opslaan','Visites précédentes':'Eerdere bezoeken',
 'Importer une liste':'Lijst importeren','ou collez le contenu':'of plak de inhoud','Départ':'Start','Tous statuts':'Alle statussen','Tous quartiers':'Alle wijken',
 'À visiter':'Te bezoeken','Rendez-vous':'Afspraak','Démo faite':'Demo gedaan','Pas intéressé':'Niet geïnteresseerd',
 'Ajouter à la tournée':'Aan ronde toevoegen','Retirer de la tournée':'Uit ronde halen','Modifier':'Bewerken',
