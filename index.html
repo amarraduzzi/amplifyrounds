@@ -224,7 +224,7 @@ header h1{font-size:26px}dialog h2{font-size:24px}
 <section class="pane" id="paneOverview" hidden><div id="overview"></div></section>
 <section class="pane" id="paneStats" hidden><div id="stats"></div></section>
 <section class="pane" id="paneList" hidden>
-      <div class="online"><button class="btn primary" id="btnOnline" type="button">Chercher en ligne</button><button class="btn" id="btnW" type="button">Réglages du score</button><button class="btn miss" id="lLocate" type="button" hidden></button></div>
+      <div class="online"><button class="btn primary" id="btnOnline" type="button">Chercher en ligne</button><button class="btn" id="btnW" type="button">Réglages du score</button><button class="btn" id="btnTpl" type="button">Messages WhatsApp</button><button class="btn miss" id="lLocate" type="button" hidden></button></div>
 <div class="filters">
         <input id="q" type="search" placeholder="Chercher un restaurant" aria-label="Chercher">
         <select id="fStatus" aria-label="Statut"></select>
@@ -352,6 +352,10 @@ header h1{font-size:26px}dialog h2{font-size:24px}
 </dialog>
 
 <dialog id="dlgWhy"><form method="dialog"><h2 id="whyTitle"></h2><div id="whyBody" class="sres"></div><div id="whyTodo" class="meta" style="color:var(--mute);font-size:13px"></div><div class="foot"><button class="btn primary" value="ok">Fermer</button></div></form></dialog>
+<dialog id="dlgTpl"><form method="dialog" id="fTpl"><h2>Messages WhatsApp</h2>
+<p style="margin:0;color:var(--mute);font-size:14px">Ces textes sont partagés avec toute l’équipe. Variables : {salut} (Salam + prénom), {date}, {heure}, {site}. Les messages de confirmation doivent garder {date} (et {heure} pour celui avec l’heure).</p>
+<div id="tplFields"></div>
+<div class="foot"><button type="button" class="btn" id="btnTplReset">Textes d’origine</button><button type="button" class="btn" id="btnTplCancel">Annuler</button><button type="button" class="btn primary" id="btnTplSave">Enregistrer</button></div></form></dialog>
 <dialog id="dlgW"><form method="dialog" id="fW"><h2>Réglages du score</h2><p style="margin:0;color:var(--mute);font-size:14px">Plus le nombre est grand, plus ce critère compte. Les réglages restent sur cet appareil.</p><div id="wFields" class="two"></div><div class="foot"><button type="button" class="btn" id="btnWReset">Réinitialiser</button><button type="button" class="btn" id="btnWCancel">Annuler</button><button class="btn primary" value="ok">Enregistrer</button></div></form></dialog>
 <!-- Online search -->
 <dialog id="dlgSearch">
@@ -382,6 +386,9 @@ const WA_TPL = {
   info: "{salut} Merci pour ton accueil aujourd’hui 😊\n\nComme convenu, voici notre site avec quelques exemples de ce que nous développons pour les restaurants :\n\n{site}\n\nNous aidons les restaurants à mieux gérer leurs opérations, à simplifier leur travail quotidien et à développer leur présence en ligne.\n\nTu peux regarder tranquillement et on en reparle quand tu veux !",
   follow: "{salut} J’espère que tu vas bien 😊\n\nJe reviens vers toi suite à notre discussion concernant Amplify Growth Studio.\n\nJe serais ravi de te montrer concrètement comment notre système pourrait aider ton restaurant à mieux gérer son activité.\n\nEst-ce que tu serais disponible cette semaine pour une petite démo de 5 minutes ?"
 };
+const WA_DEF = { ...WA_TPL, site: WA_CFG.site };
+const TPL_F = [['appt_prop', 'Proposer un RDV (sans date)'], ['appt_date', 'Confirmer un RDV (date sans heure)'], ['appt_full', 'Confirmer un RDV (date et heure)'], ['info', 'Infos et exemples'], ['follow', 'Relancer l’intérêt'], ['site', 'Lien du site ou de la démo ({site})']];
+const applyTpl = rowsT => { Object.assign(WA_TPL, Object.fromEntries(Object.entries(WA_DEF).filter(([k]) => k !== 'site'))); WA_CFG.site = WA_DEF.site; (rowsT || []).forEach(x => { if (x.key === 'site') WA_CFG.site = x.body; else if (x.key in WA_TPL) WA_TPL[x.key] = x.body; }); };
 const isMobileMA = p => /^212[67]\d{8}$/.test(waNumber(p));
 function waText(kind, f) {
   const c = (f.contact_name?.value || '').split(',')[0].trim(), nc = f.next_contact.value;
@@ -535,6 +542,18 @@ const store = {
     const a = ls('at_bil', '[]'), i = a.findIndex(x => x.report_date === r.report_date && x.author === r.author);
     if (i >= 0) a[i] = { ...a[i], ...r }; else a.push(r);
     localStorage.setItem('at_bil', JSON.stringify(a));
+  },
+  async tplList() {
+    if (sb) { const { data, error } = await sb.from('app_texts').select('*'); if (error) throw error; return data; }
+    return ls('at_tpl', '[]');
+  },
+  async tplSave(key, body) {
+    if (sb) { const { error } = await sb.from('app_texts').upsert({ key, body, updated_at: new Date().toISOString() }); if (error) throw error; return; }
+    localStorage.setItem('at_tpl', JSON.stringify([...ls('at_tpl', '[]').filter(x => x.key !== key), { key, body }]));
+  },
+  async tplReset(key) {
+    if (sb) { const { error } = await sb.from('app_texts').delete().eq('key', key); if (error) throw error; return; }
+    localStorage.setItem('at_tpl', JSON.stringify(ls('at_tpl', '[]').filter(x => x.key !== key)));
   },
   async fuSave(f) {
     if (sb) { const { data, error } = await sb.from('followups').upsert(f).select().single(); if (error) throw error; return data; }
@@ -795,6 +814,23 @@ $('#fuBox').addEventListener('change', async e => {
   try { const a = (await store.fuFor(rid)).find(x => x.id === row.dataset.id); if (!a || a.due_date === i.value) return; await store.fuSave({ ...a, due_date: i.value, history: [...(a.history || []), { due: a.due_date, at: new Date().toISOString() }] }); } catch (err) { return toast('Erreur : ' + err.message, 5000); }
   fuChange(rid);
 });
+// ---- Modifier les messages WhatsApp (partagé via la table app_texts) ----
+$('#btnTpl').onclick = () => {
+  $('#tplFields').innerHTML = TPL_F.map(([k, t]) => `<label style="display:block;margin-top:8px"><div class="lbl">${t}</div>${k === 'site' ? `<input data-tf="${k}" style="width:100%">` : `<textarea data-tf="${k}" rows="6" style="width:100%"></textarea>`}</label>`).join('');
+  TPL_F.forEach(([k]) => { $('#tplFields').querySelector(`[data-tf="${k}"]`).value = k === 'site' ? WA_CFG.site : WA_TPL[k]; });
+  $('#dlgTpl').showModal();
+};
+$('#btnTplCancel').onclick = () => $('#dlgTpl').close();
+$('#btnTplReset').onclick = () => TPL_F.forEach(([k]) => { $('#tplFields').querySelector(`[data-tf="${k}"]`).value = WA_DEF[k]; });
+$('#btnTplSave').onclick = async () => {
+  const v = Object.fromEntries(TPL_F.map(([k]) => [k, $('#tplFields').querySelector(`[data-tf="${k}"]`).value.trim()]));
+  if (TPL_F.some(([k]) => !v[k])) return toast('Aucun texte ne peut être vide.', 4000);
+  if (!v.appt_date.includes('{date}') || !v.appt_full.includes('{date}') || !v.appt_full.includes('{heure}')) return toast('Les messages de confirmation doivent contenir {date} (et {heure} pour celui avec l’heure).', 6000);
+  try {
+    for (const [k] of TPL_F) { if (v[k] === WA_DEF[k]) await store.tplReset(k); else await store.tplSave(k, v[k]); }
+    applyTpl(await store.tplList()); $('#dlgTpl').close(); toast('Messages enregistrés.');
+  } catch (err) { toast('Erreur : ' + (/app_texts/.test(err.message || '') ? 'lance schema-update-6.sql dans Supabase.' : err.message), 6000); }
+};
 $('#btnVisitCancel').onclick = () => $('#dlgVisit').close();
 $('#waTpl').addEventListener('click', e => {
   const b = e.target.closest('[data-wa]'); const r = rows.find(x => x.id === visitId); if (!b || !r || !isMobileMA(r.phone)) return;
@@ -976,6 +1012,7 @@ $('#tabToday').onclick = () => showTab('today'); $('#tabList').onclick = () => s
 async function reload() {
   rows = await store.list();
   try { fus = await store.fuOpen(); } catch { fus = []; }
+  if (!reload.tpl) { reload.tpl = true; try { applyTpl(await store.tplList()); } catch {} }
   selected = new Set([...selected].filter(id => rows.some(r => r.id === id)));
   renderAll();
   if (rows.some(r => r.lat != null) && !reload.done) { map.fitBounds(L.latLngBounds(rows.filter(r => r.lat != null).map(r => [r.lat, r.lng])).pad(.2)); reload.done = true; }
@@ -1366,7 +1403,7 @@ const D = {
 'Lien Google Maps (coordonnées automatiques)':'Google Maps-link (coördinaten automatisch)','Latitude':'Breedtegraad','Longitude':'Lengtegraad',
 'Trouver via l’adresse':'Zoeken via adres','Placer sur la carte':'Op de kaart plaatsen','Supprimer':'Verwijderen','Annuler':'Annuleren','Enregistrer':'Opslaan',
 'Visite':'Bezoek','Compte rendu':'Verslag','Prochaine étape':'Volgende stap','Prochain contact':'Volgend contact','Statut après visite':'Status na bezoek',
-'Suivi WhatsApp':'WhatsApp-opvolging','Suivis':'Opvolging','Analyse de la période':'Analyse van de periode','7 jours':'7 dagen','30 jours':'30 dagen','Tout':'Alles','Restaurants différents visités':'Verschillende restaurants bezocht','Conversations avec le gérant':'Gesprekken met de manager','Intéressés':'Geïnteresseerd','Pas intéressés':'Niet geïnteresseerd','Suivis terminés':'Afgeronde acties','Suivis en retard (maintenant)':'Acties te laat (nu)','Devenus clients':'Klant geworden','Résultats':'Resultaten','Objections (période)':'Bezwaren (periode)','Par jour de la semaine':'Per dag van de week','Prospects sans suivi':'Prospects zonder opvolging','Moins de 30 visites : conclusions provisoires. Un lien statistique ne prouve pas une cause.':'Minder dan 30 bezoeken: conclusies zijn voorlopig. Een statistisch verband bewijst geen oorzaak.','Lun':'Ma','Mar':'Di','Mer':'Wo','Jeu':'Do','Ven':'Vr','Sam':'Za','Dim':'Zo','Bilan de la journée':'Dagrapport','Date':'Datum','Chiffres calculés automatiquement':'Automatisch berekende cijfers','Notes (à remplir)':'Notities (zelf invullen)','Qu’est-ce qui s’est bien passé ?':'Wat ging goed?','Qu’est-ce qui s’est mal passé ?':'Wat ging slecht?','Quelles objections ai-je entendues ?':'Welke bezwaren hoorde ik?','Quelles phrases d’accroche ont bien marché ?':'Welke openingszinnen werkten goed?','Qu’ai-je appris ?':'Wat heb ik geleerd?','Que changer demain ?':'Wat moet ik morgen anders doen?','Enregistrer le bilan':'Dagrapport opslaan','Bilans précédents':'Eerdere dagrapporten','Bilan enregistré.':'Dagrapport opgeslagen.','En retard':'Te laat','À venir':'Binnenkort','Action terminée.':'Actie afgerond.','Actions de suivi':'Opvolgacties','Ajouter une action':'Actie toevoegen','Aucune action ouverte.':'Geen openstaande acties.','Type d’action':'Type actie','Repasser':'Opnieuw langsgaan','Appeler':'Bellen','WhatsApp à envoyer':'WhatsApp sturen','Faire une démo':'Demo geven','Confirmer le RDV':'Afspraak bevestigen','Envoyer des infos':'Info sturen','Note (facultatif)':'Notitie (optioneel)','Heure du RDV (facultatif)':'Tijd van de afspraak (optioneel)','RDV : confirmer ou proposer':'Afspraak bevestigen of voorstellen','Infos et exemples':'Info en voorbeelden sturen','Relancer l’intérêt':'Interesse opvolgen','Numéro fixe ou non reconnu : pas de modèles WhatsApp. Le bouton Suivi WhatsApp reste disponible.':'Vast of onbekend nummer: geen WhatsApp-berichten. De knop WhatsApp-opvolging blijft beschikbaar.','Enregistrer la visite':'Bezoek opslaan','Visites précédentes':'Eerdere bezoeken',
+'Suivi WhatsApp':'WhatsApp-opvolging','Suivis':'Opvolging','Messages WhatsApp':'WhatsApp-berichten','Proposer un RDV (sans date)':'Afspraak voorstellen (zonder datum)','Confirmer un RDV (date sans heure)':'Afspraak bevestigen (datum zonder tijd)','Confirmer un RDV (date et heure)':'Afspraak bevestigen (datum en tijd)','Lien du site ou de la démo ({site})':'Link naar website of demo ({site})','Textes d’origine':'Originele teksten','Messages enregistrés.':'Berichten opgeslagen.','Ces textes sont partagés avec toute l’équipe. Variables : {salut} (Salam + prénom), {date}, {heure}, {site}. Les messages de confirmation doivent garder {date} (et {heure} pour celui avec l’heure).':'Deze teksten worden met het hele team gedeeld. Variabelen: {salut} (Salam + voornaam), {date}, {heure} (tijd), {site}. De bevestigingsberichten moeten {date} behouden (en {heure} in het bericht met tijd).','Analyse de la période':'Analyse van de periode','7 jours':'7 dagen','30 jours':'30 dagen','Tout':'Alles','Restaurants différents visités':'Verschillende restaurants bezocht','Conversations avec le gérant':'Gesprekken met de manager','Intéressés':'Geïnteresseerd','Pas intéressés':'Niet geïnteresseerd','Suivis terminés':'Afgeronde acties','Suivis en retard (maintenant)':'Acties te laat (nu)','Devenus clients':'Klant geworden','Résultats':'Resultaten','Objections (période)':'Bezwaren (periode)','Par jour de la semaine':'Per dag van de week','Prospects sans suivi':'Prospects zonder opvolging','Moins de 30 visites : conclusions provisoires. Un lien statistique ne prouve pas une cause.':'Minder dan 30 bezoeken: conclusies zijn voorlopig. Een statistisch verband bewijst geen oorzaak.','Lun':'Ma','Mar':'Di','Mer':'Wo','Jeu':'Do','Ven':'Vr','Sam':'Za','Dim':'Zo','Bilan de la journée':'Dagrapport','Date':'Datum','Chiffres calculés automatiquement':'Automatisch berekende cijfers','Notes (à remplir)':'Notities (zelf invullen)','Qu’est-ce qui s’est bien passé ?':'Wat ging goed?','Qu’est-ce qui s’est mal passé ?':'Wat ging slecht?','Quelles objections ai-je entendues ?':'Welke bezwaren hoorde ik?','Quelles phrases d’accroche ont bien marché ?':'Welke openingszinnen werkten goed?','Qu’ai-je appris ?':'Wat heb ik geleerd?','Que changer demain ?':'Wat moet ik morgen anders doen?','Enregistrer le bilan':'Dagrapport opslaan','Bilans précédents':'Eerdere dagrapporten','Bilan enregistré.':'Dagrapport opgeslagen.','En retard':'Te laat','À venir':'Binnenkort','Action terminée.':'Actie afgerond.','Actions de suivi':'Opvolgacties','Ajouter une action':'Actie toevoegen','Aucune action ouverte.':'Geen openstaande acties.','Type d’action':'Type actie','Repasser':'Opnieuw langsgaan','Appeler':'Bellen','WhatsApp à envoyer':'WhatsApp sturen','Faire une démo':'Demo geven','Confirmer le RDV':'Afspraak bevestigen','Envoyer des infos':'Info sturen','Note (facultatif)':'Notitie (optioneel)','Heure du RDV (facultatif)':'Tijd van de afspraak (optioneel)','RDV : confirmer ou proposer':'Afspraak bevestigen of voorstellen','Infos et exemples':'Info en voorbeelden sturen','Relancer l’intérêt':'Interesse opvolgen','Numéro fixe ou non reconnu : pas de modèles WhatsApp. Le bouton Suivi WhatsApp reste disponible.':'Vast of onbekend nummer: geen WhatsApp-berichten. De knop WhatsApp-opvolging blijft beschikbaar.','Enregistrer la visite':'Bezoek opslaan','Visites précédentes':'Eerdere bezoeken',
 'Importer une liste':'Lijst importeren','ou collez le contenu':'of plak de inhoud','Départ':'Start','Tous statuts':'Alle statussen','Tous quartiers':'Alle wijken',
 'À visiter':'Te bezoeken','Rendez-vous':'Afspraak','Démo faite':'Demo gedaan','Pas intéressé':'Niet geïnteresseerd',
 'Ajouter à la tournée':'Aan ronde toevoegen','Retirer de la tournée':'Uit ronde halen','Modifier':'Bewerken',
