@@ -156,11 +156,7 @@ header h1{font-size:26px}dialog h2{font-size:24px}
 #today .pill.hot{background:#FBEAE8;border-color:#EBC3BF;color:var(--danger);font-weight:600}
 #today .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;gap:12px}
 #today .find{display:flex;gap:8px}
-#today .find input{flex:1;min-width:0;font-size:16px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;min-height:44px}
-#today .sug{display:grid;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:-4px;background:#fff}
-#today .sug:empty{display:none}
-#today .sug button{text-align:left;background:#fff;border:0;border-bottom:1px solid var(--line);padding:12px;font-size:15px;min-height:44px;color:inherit}
-#today .sug button:last-child{border-bottom:0}
+#today .find input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;min-height:44px}
 #today .from{display:flex;flex-wrap:wrap;align-items:center;gap:0 8px;font-size:13px;color:var(--mute)}
 #today .lks{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:0 18px;padding-left:24px}
 #today .from svg{width:16px;height:16px;flex:none;fill:none;stroke:var(--accent);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -224,7 +220,7 @@ header h1{font-size:26px}dialog h2{font-size:24px}
 <section class="pane" id="paneOverview" hidden><div id="overview"></div></section>
 <section class="pane" id="paneStats" hidden><div id="stats"></div></section>
 <section class="pane" id="paneList" hidden>
-      <div class="online"><button class="btn primary" id="btnOnline" type="button">Chercher en ligne</button><button class="btn" id="btnW" type="button">Réglages du score</button><button class="btn miss" id="lLocate" type="button" hidden></button></div>
+      <div class="online"><button class="btn primary" id="btnOnline" type="button">Chercher en ligne</button><button class="btn" id="btnW" type="button">Réglages du score</button></div>
 <div class="filters">
         <input id="q" type="search" placeholder="Chercher un restaurant" aria-label="Chercher">
         <select id="fStatus" aria-label="Statut"></select>
@@ -291,7 +287,7 @@ header h1{font-size:26px}dialog h2{font-size:24px}
       <button type="button" class="btn" id="btnPick">Placer sur la carte</button>
     </div>
     <div class="two"><label>Type<select name="kind"><option value="">—</option><option value="restaurant">Restaurant</option><option value="cafe">Café</option><option value="snack">Snack</option><option value="patisserie">Pâtisserie</option></select></label>
-<label>Site web<select name="website_status"><option value="unknown">Inconnu</option><option value="no">Pas de site</option><option value="yes">A un site</option></select></label></div>
+<label>Site web<select name="website_status"><option value="unknown">Inconnu</option><option value="no">Pas de site</option><option value="yes">A un site</option><option value="broken">Site non fonctionnel</option></select></label></div>
 <div class="two"><label>Note Google<input name="g_rating" inputmode="decimal" placeholder="4,5"></label><label>Nombre d’avis<input name="g_reviews" inputmode="numeric" placeholder="120"></label></div>
 <label>Environnement<select name="area"><option value="">—</option><option value="good">Quartier agréable</option><option value="ok">Moyen</option><option value="bad">Quartier difficile</option></select></label>
 <label>Statut<select name="status"></select></label>
@@ -413,45 +409,6 @@ async function geocode(q) {
   return j[0] ? { lat: +j[0].lat, lng: +j[0].lon } : null;
 }
 
-async function suggestPlaces(q) { // typo-tolerant search (Photon), Morocco only, biased to Rabat
-  const r = await fetch('https://photon.komoot.io/api/?limit=8&lang=fr&lat=34.02&lon=-6.84&bbox=-13.5,27.5,-1,36&q=' + encodeURIComponent(q));
-  const j = await r.json(), seen = new Set();
-  return (j.features || []).filter(f => (f.properties.countrycode || 'MA') === 'MA').map(f => {
-    const p = f.properties, label = [p.name, p.district || p.city || p.county].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(', ');
-    return { lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], label };
-  }).filter(x => x.label && !seen.has(x.label) && seen.add(x.label)).slice(0, 5);
-}
-async function geocodeFuzzy(q) {
-  try { const p = await geocode(q); if (p) return p; } catch {}
-  const s = await suggestPlaces(q);
-  return s[0] ? { lat: s[0].lat, lng: s[0].lng } : null;
-}
-const inBox = p => p && p.lat > 33.85 && p.lat < 34.15 && p.lng > -7.2 && p.lng < -6.6;
-async function geocodeRaw(q) {
-  const city = /t[ée]mara|harhoura|sal[ée]/i.test(q) ? '' : ', Rabat';
-  const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ma&viewbox=-7.2,34.15,-6.6,33.85&q=' + encodeURIComponent(q + city + ', Maroc'), { headers: { 'Accept-Language': 'fr' } });
-  const j = await r.json();
-  return j[0] ? { lat: +j[0].lat, lng: +j[0].lon } : null;
-}
-const APPROX_KEY = 'at_approx', posKey = (lat, lng) => (+lat).toFixed(5) + ',' + (+lng).toFixed(5);
-const isApprox = r => r.lat != null && ls(APPROX_KEY, '{}')[r.id] === posKey(r.lat, r.lng);
-const DIST_FALLBACK = { agdal: [33.9916, -6.8555], hassan: [34.0209, -6.8326], 'hay riad': [33.9577, -6.8696], souissi: [33.978, -6.83], oudayas: [34.0316, -6.836], ocean: [34.0227, -6.8387], harhoura: [33.956, -6.987], temara: [33.928, -6.906], sale: [34.0531, -6.7985], marina: [34.029, -6.825] };
-function approxPos(r) { // centre of the district (median of already placed restaurants, else a fixed point), with a small spread
-  const k = norm(r.district || ''), same = rows.filter(x => x.lat != null && x.lng != null && norm(x.district || '') === k && !isApprox(x));
-  const med = a => { a = a.slice().sort((x, y) => x - y); return a[Math.floor(a.length / 2)]; };
-  const c = k && same.length >= 3 ? [med(same.map(x => +x.lat)), med(same.map(x => +x.lng))] : (DIST_FALLBACK[k] || [34.0209, -6.8416]);
-  let h = 0; for (const ch of String(r.id)) h = (h * 31 + ch.charCodeAt(0)) | 0;
-  return { lat: c[0] + ((h % 600) / 100000), lng: c[1] + (((h >> 8) % 600) / 100000) };
-}
-async function findPos(r) { // returns exact position or null; tries address, then fuzzy name search, then plain name search
-  const toks = norm(r.name).split(/[^a-z0-9]+/).filter(w => w.length >= 3), d = r.district || '';
-  try { if (r.address) { const p = await geocodeRaw([r.address, d].filter(Boolean).join(', ')); if (inBox(p)) return p; await sleep(1100); } } catch {}
-  try { const s = await suggestPlaces([r.name, d || 'Rabat'].join(' ')); const m = s.find(x => inBox(x) && toks.some(w => norm(x.label).includes(w))); if (m) return { lat: m.lat, lng: m.lng }; } catch {}
-  try { const p = await geocodeRaw([r.name, d].filter(Boolean).join(', ')); if (inBox(p)) return p; await sleep(1100); } catch {}
-  return null;
-}
-let sugTimer = 0, sugList = [];
-
 // ====== Data layer (Supabase or local) ======
 const useDb = !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY);
 const sb = useDb ? supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY) : null;
@@ -550,7 +507,7 @@ function scoreInfo(r) {
   if (r.status === 'client' || r.status === 'lost') return null;
   let n = 40; const why = [], todo = [];
   const add = (p, t) => { if (p) { n += p; why.push({ p, t }); } };
-  if (r.website_status === 'no') add(W.noSite, 'Pas de site web'); else if (r.website_status === 'yes') add(W.hasSite, 'A déjà un site web'); else todo.push('Site web inconnu');
+  if (r.website_status === 'no') add(W.noSite, 'Pas de site web'); else if (r.website_status === 'broken') add(W.noSite, 'Site web non fonctionnel'); else if (r.website_status === 'yes') add(W.hasSite, 'A déjà un site web'); else todo.push('Site web inconnu');
   const v = r.g_reviews || 0;
   if (r.g_reviews == null) todo.push('Avis Google manquants'); else add(Math.round(W.reviews * (v >= 300 ? 1 : v >= 100 ? .75 : v >= 30 ? .5 : v > 0 ? .25 : 0)), v + ' avis Google');
   if (r.g_rating >= 4.3) add(W.rating, 'Bonne note Google'); else if (v && r.g_rating < 3.5) add(-W.rating, 'Note Google basse');
@@ -581,7 +538,6 @@ function renderList() {
   const items = filtered().sort((a, b) => (leadScore(b) ?? -1) - (leadScore(a) ?? -1) || a.name.localeCompare(b.name)), today = new Date().toISOString().slice(0, 10);
   if (!rows.length) { $('#list').innerHTML = '<div class="empty">Aucun restaurant pour l’instant. Ajoutez-en un ou importez une liste CSV.</div>'; return; }
   if (!items.length) { $('#list').innerHTML = '<div class="empty">Aucun résultat pour ces filtres.<br><br><button class="btn primary" onclick="openSearch($(\'#q\').value)">Chercher en ligne</button></div>'; return; }
-  { const miss = rows.filter(r => r.lat == null || r.lng == null).length, lb = $('#lLocate'); if (lb && !geoBusy) { lb.hidden = !miss; lb.disabled = false; lb.textContent = 'Chercher les positions manquantes (' + miss + ')'; } }
   $('#list').innerHTML = items.map(r => {
     const noPos = r.lat == null || r.lng == null;
     const due = r.next_contact && r.next_contact <= today;
@@ -589,7 +545,7 @@ function renderList() {
       <span class="dot" style="background:${STATUS[r.status]?.color}" title="${esc(STATUS[r.status]?.label)}"></span>
       <div>
         <button class="name" onclick="focusRow('${r.id}')">${esc(r.name)}</button>${leadScore(r) != null ? `<button class="score ${leadScore(r) >= 70 ? 'hi' : leadScore(r) >= 50 ? 'mid' : ''}" onclick="showWhy('${r.id}')" title="Pourquoi ce score ?">${leadScore(r)}</button>` : ''}
-        <div class="meta">${esc(STATUS[r.status]?.label)}${r.district ? ' · ' + esc(r.district) : ''}${noPos ? ' · sans position' : isApprox(r) ? ' · position approximative' : ''}${r.last_visit_at ? ' · visité ' + fmtD(r.last_visit_at) : ''}</div>
+        <div class="meta">${esc(STATUS[r.status]?.label)}${r.district ? ' · ' + esc(r.district) : ''}${noPos ? ' · sans position' : ''}${r.last_visit_at ? ' · visité ' + fmtD(r.last_visit_at) : ''}</div>
         ${r.next_step ? `<div class="next ${due ? 'due' : ''}">${due ? 'À relancer : ' : ''}${esc(r.next_step)}</div>` : ''}
       </div>
       <div class="acts">
@@ -736,7 +692,7 @@ $('#fImport').addEventListener('submit', async () => {
   if (col.name < 0) return toast('Colonne « name » introuvable.', 4500);
   const get = (r, k) => col[k] >= 0 ? (r[col[k]] || '').trim() : '';
 const nz = v => { const x = parseFloat(String(v).replace(',', '.')); return isNaN(x) ? null : x; };
-const extra = r => ({ g_rating: nz(get(r, 'rating')), g_reviews: nz(get(r, 'reviews')) == null ? null : Math.round(nz(get(r, 'reviews'))), website_status: ['yes', 'no', 'unknown'].includes(get(r, 'wstatus').toLowerCase()) ? get(r, 'wstatus').toLowerCase() : (get(r, 'website') ? 'yes' : (col.website >= 0 ? 'no' : 'unknown')), kind: ['restaurant', 'cafe', 'snack', 'patisserie'].includes(get(r, 'kind').toLowerCase()) ? get(r, 'kind').toLowerCase() : null });
+const extra = r => ({ g_rating: nz(get(r, 'rating')), g_reviews: nz(get(r, 'reviews')) == null ? null : Math.round(nz(get(r, 'reviews'))), website_status: ['yes', 'no', 'broken', 'unknown'].includes(get(r, 'wstatus').toLowerCase()) ? get(r, 'wstatus').toLowerCase() : (get(r, 'website') ? 'yes' : (col.website >= 0 ? 'no' : 'unknown')), kind: ['restaurant', 'cafe', 'snack', 'patisserie'].includes(get(r, 'kind').toLowerCase()) ? get(r, 'kind').toLowerCase() : null });
   const allItems = table.slice(1).map(r => {
     let lat = parseFloat(get(r, 'lat').replace(',', '.')), lng = parseFloat(get(r, 'lng').replace(',', '.'));
     if (isNaN(lat) || isNaN(lng)) { const p = parseMapsLink(get(r, 'maps')); lat = p?.lat ?? null; lng = p?.lng ?? null; }
@@ -776,10 +732,6 @@ if (!items.length) return toast(`0 importés, ${skipped} déjà dans la liste${u
 });
 
 // ====== Routing ======
-function gPt(r) { // Google Maps point: name + address shows the restaurant name; otherwise coordinates
-  if (r && r.name && r.address) return encodeURIComponent([r.name, r.address].join(', '));
-  return r.lat + ',' + r.lng;
-}
 function nearestNeighbor(pts) { // pts[0] = start; returns order of indices (without 0)
   const left = pts.map((_, i) => i).slice(1), order = []; let cur = 0;
   while (left.length) { let b = 0; left.forEach((idx, k) => { if (haversine(pts[cur], pts[idx]) < haversine(pts[cur], pts[left[b]])) b = k; }); cur = left.splice(b, 1)[0]; order.push(cur); }
@@ -787,8 +739,7 @@ function nearestNeighbor(pts) { // pts[0] = start; returns order of indices (wit
 }
 function twoOpt(pts, order, loop) {
   const seq = [0, ...order].concat(loop ? [0] : []);
-  const w = loop ? 1 : 3; // open route: first leg counts extra, so the nearest stops come first
-  const d = (a, b) => haversine(pts[seq[a]], pts[seq[b]]) * (seq[a] === 0 || seq[b] === 0 ? w : 1);
+  const d = (a, b) => haversine(pts[seq[a]], pts[seq[b]]);
   let improved = true;
   while (improved) {
     improved = false;
@@ -836,14 +787,17 @@ $('#btnGeo').onclick = () => {
     startMarker.setLatLng([start.lat, start.lng]); map.setView([start.lat, start.lng], 14); route = null; renderRoute();
   }, () => toast('Autorisez la localisation dans le navigateur.', 4000), { enableHighAccuracy: true, timeout: 10000 });
 };
+const gmPlace = r => [r.name, r.address || r.district, 'Maroc'].filter(Boolean).join(', ');
+function gmapsUrl(o, mode, loop) { // o = stops in visiting order, start = departure
+  const pt = p => p.lat + ',' + p.lng, enc = encodeURIComponent;
+  const dest = loop ? pt(start) : gmPlace(o[o.length - 1]), via = loop ? o : o.slice(0, -1);
+  return `https://www.google.com/maps/dir/?api=1&travelmode=${mode}&origin=${enc(pt(start))}&destination=${enc(dest)}&waypoints=${via.slice(0, 9).map(r => enc(gmPlace(r))).join('%7C')}`;
+}
 $('#btnGmaps').onclick = () => {
   if (!route) return;
-  const pt = p => p.lat + ',' + p.lng, o = route.order;
-  const loop = $('#loop').checked;
-  const dest = loop ? start : o[o.length - 1], via = loop ? o : o.slice(0, -1);
-  const gp = p => p === start ? pt(p) : gPt(p);
-  if (via.length > 9) toast('Google Maps accepte environ 10 arrêts : le reste est ignoré.', 5000);
-  window.open(`https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=${pt(start)}&destination=${gp(dest)}&waypoints=${via.slice(0, 9).map(gp).join('|')}`, '_blank');
+  const o = route.order, loop = $('#loop').checked;
+  if ((loop ? o : o.slice(0, -1)).length > 9) toast('Google Maps accepte environ 10 arrêts : le reste est ignoré.', 5000);
+  window.open(gmapsUrl(o, 'driving', loop), '_blank');
 };
 window.wazeTo = id => { const r = rows.find(x => x.id === id); if (r) window.open(`https://waze.com/ul?ll=${r.lat},${r.lng}&navigate=yes`, '_blank'); };
 
@@ -1010,6 +964,7 @@ function planDay() {
 function tipFor(r) {
   if (['interested', 'appt', 'demo', 'trial'].includes(r.status)) return 'Reprenez où vous en étiez.';
   if (r.website_status === 'no') return 'Pas de site : proposez Amplify Site (dès 250 DH).';
+  if (r.website_status === 'broken') return 'Site non fonctionnel : proposez Amplify Site (dès 250 DH).';
   if ((r.g_reviews || 0) >= 100) return 'Beaucoup d’avis, donc du passage : parlez marges et caisse (POS dès 199 DH/mois).';
   return 'Premier contact : demandez comment ils suivent leurs marges aujourd’hui.';
 }
@@ -1028,14 +983,13 @@ function renderToday() {
   const stops = P.items.length ? `<ol class="stops"><li class="stop"><span class="num start">D</span><div><b>Départ</b></div></li>${P.items.map(({ r, due }, i) => {
     const v = r.g_reviews, late = due && r.next_contact < today;
     const why = due ? `Relance prévue le ${fmtD(r.next_contact)}${late ? ' (en retard)' : ''}${r.next_step ? ' : ' + esc(r.next_step) : ''}`
-      : `Score ${leadScore(r)}${r.website_status === 'no' ? ' · pas de site' : ''}${v ? ' · ' + v + ' avis' : ''}${r.last_visit_at ? '' : ' · jamais visité'}`;
+      : `Score ${leadScore(r)}${r.website_status === 'no' ? ' · pas de site' : r.website_status === 'broken' ? ' · site non fonctionnel' : ''}${v ? ' · ' + v + ' avis' : ''}${r.last_visit_at ? '' : ' · jamais visité'}`;
     return `<li class="stop${due ? ' fu' : ''}${late ? ' late' : ''}"><span class="num">${i + 1}</span><div><b>${esc(r.name)}</b><div class="leg ${late ? 'late' : ''}">${esc(r.district || '')}${r.district ? ' · ' : ''}${why}</div><div class="tip">${tipFor(r)}</div><div class="acts"><button class="btn sm" onclick="wazeTo('${r.id}')">Waze</button><button class="btn sm go" onclick="openVisit('${r.id}')">Visite</button></div></div></li>`;
   }).join('')}</ol>${P.items.length < day.n ? `<div class="empty">Plus de restaurants ne correspondent pas aux filtres${missing ? ' (certains n’ont pas encore de position)' : ''}. Essayez une autre région ou désactivez « nouveaux et fort potentiel ».</div>` : ''}`
   : `<div class="empty">${rows.length ? 'Aucun restaurant ne correspond. Essayez une autre région, désactivez « nouveaux et fort potentiel »' + (missing ? ' ou cherchez les positions manquantes.' : '.') : 'Ajoutez des restaurants avec une position (liste, import ou recherche en ligne) pour recevoir un conseil.'}</div>`;
   el.innerHTML = `<div class="strip"><span class="pill${nDue ? ' hot' : ''}">${nDue} à relancer</span><span class="pill">${nNew} pas encore visités</span><span class="pill">${nWeek} visites cette semaine</span></div>
 <section class="card">
 <div class="find"><input id="dAddr" type="search" aria-label="Adresse ou quartier" placeholder="Adresse ou quartier" value="${esc(day.addr)}"><button class="btn" id="dFind" type="button">Chercher</button></div>
-<div id="dSug" class="sug"></div>
 <div class="from">${pin}<span class="fl">${sl ? 'Départ : ' + esc(sl) : 'Départ : repère sur la carte (Agdal par défaut)'}</span><span class="lks"><button class="lk" id="dGeo" type="button">Ma position</button><a href="#" class="lk" id="dPin">Déplacer sur la carte</a></span></div>
 <label><div class="lbl">Région</div><select id="dRegion"><option value="">Peu importe, le plus proche du départ</option>${regs.map(o => `<option value="${esc(o.k)}" ${o.k === day.region ? 'selected' : ''}>${esc(o.label)} (${o.n})</option>`).join('')}</select></label>
 <div class="two2"><div><div class="lbl">Nombre d’arrêts</div><div class="seg" id="dN">${seg('n', [6, 8, 12, 16].map(h => [h, h]), day.n)}</div></div>
@@ -1046,23 +1000,18 @@ ${missing ? `<button class="btn miss" id="dLocate" type="button">Chercher les po
 ${P.items.length ? `<section class="plan"><div class="summary">${P.items.length} arrêts · ${km(P.dist)} · ≈ ${mins(P.dur)}</div><div class="line"><button class="btn primary" id="btnPlanGo">Mettre dans ma tournée</button><button class="btn" id="dGmaps" type="button">Ouvrir dans Google Maps</button></div></section>` : ''}
 ${stops}`;
 }
-async function locateMissing(b) {
-  const todo = rows.filter(r => r.lat == null || r.lng == null); if (!todo.length || geoBusy) return;
-  geoBusy = true; b = b || $('#dLocate'); if (b) b.disabled = true; let ok = 0, ap = 0; const am = ls(APPROX_KEY, '{}');
+async function locateMissing() {
+  const todo = rows.filter(r => r.lat == null); if (!todo.length) return;
+  geoBusy = true; const b = $('#dLocate'); b.disabled = true; let ok = 0;
   for (let i = 0; i < todo.length; i++) {
-    if (b) b.textContent = (i + 1) + '/' + todo.length;
-    let p = null, approx = false;
-    try { p = await findPos(todo[i]); } catch {}
-    if (!p) { p = approxPos(todo[i]); approx = true; }
-    try { await store.save({ id: todo[i].id, name: todo[i].name, lat: p.lat, lng: p.lng }); if (approx) { am[todo[i].id] = posKey(p.lat, p.lng); ap++; } else ok++; } catch {}
-    await sleep(300);
+    b.textContent = (i + 1) + '/' + todo.length;
+    try { const p = await geocode([todo[i].address, todo[i].district, todo[i].name].filter(Boolean).join(', ')); if (p) { await store.save({ id: todo[i].id, name: todo[i].name, lat: p.lat, lng: p.lng }); ok++; } } catch {}
+    await sleep(1100);
   }
-  localStorage.setItem(APPROX_KEY, JSON.stringify(am));
   geoBusy = false;
   try { await reload(); } catch {}
-  toast(`${ok} positions trouvées, ${ap} approximatives.`, 6000);
+  toast(`${ok} positions trouvées, ${todo.length - ok} introuvables.`, 5000);
 }
-$('#lLocate').onclick = e => locateMissing(e.currentTarget);
 $('#today').addEventListener('click', async e => {
   const t = e.target;
   const n = t.closest('button[data-n]'); if (n) { day.n = +n.dataset.n; saveDay(); return renderToday(); }
@@ -1072,20 +1021,18 @@ $('#today').addEventListener('click', async e => {
     if (!navigator.geolocation) return toast('Localisation non disponible.');
     return navigator.geolocation.getCurrentPosition(p => { map.setView([p.coords.latitude, p.coords.longitude], 14); setStart({ lat: p.coords.latitude, lng: p.coords.longitude }, 'Ma position'); }, () => toast('Autorisez la localisation dans le navigateur.', 4000), { enableHighAccuracy: true, timeout: 10000 });
   }
-  const sg = t.closest('button[data-sug]');
-  if (sg) { const p = sugList[+sg.dataset.sug]; if (p) { day.addr = p.label; saveDay(); map.setView([p.lat, p.lng], 14); setStart(p, p.label); } return; }
   if (t.closest('#dFind')) {
     const q = $('#dAddr').value.trim(); if (!q) return;
     day.addr = q; saveDay();
-    try { const p = await geocodeFuzzy(q); if (!p) return toast('Adresse introuvable. Essayez un quartier ou « Déplacer sur la carte ».', 4500); map.setView([p.lat, p.lng], 14); setStart(p, q); } catch { toast('Service indisponible, réessayez.'); }
+    try { const p = await geocode(q); if (!p) return toast('Adresse introuvable. Essayez un quartier ou « Déplacer sur la carte ».', 4500); map.setView([p.lat, p.lng], 14); setStart(p, q); } catch { toast('Service indisponible, réessayez.'); }
     return;
   }
-  if (t.closest('#dLocate')) return locateMissing(t.closest('#dLocate'));
+  if (t.closest('#dLocate')) return locateMissing();
   if (t.closest('#dGmaps')) {
     const o = (lastPlan?.items || []).map(x => x.r); if (!o.length) return;
-    const pt = p => p.lat + ',' + p.lng, gp = p => p === start ? pt(p) : gPt(p), loop = $('#loop').checked, dest = loop ? start : o[o.length - 1], via = loop ? o : o.slice(0, -1);
-    if (via.length > 9) toast('Google Maps accepte environ 10 arrêts : le reste est ignoré.', 5000);
-    return void window.open(`https://www.google.com/maps/dir/?api=1&travelmode=${day.mode === 'walk' ? 'walking' : 'driving'}&origin=${pt(start)}&destination=${gp(dest)}&waypoints=${via.slice(0, 9).map(gp).join('|')}`, '_blank');
+    const loop = $('#loop').checked;
+    if ((loop ? o : o.slice(0, -1)).length > 9) toast('Google Maps accepte environ 10 arrêts : le reste est ignoré.', 5000);
+    return void window.open(gmapsUrl(o, day.mode === 'walk' ? 'walking' : 'driving', loop), '_blank');
   }
   if (t.closest('#btnPlanGo')) {
     selected = new Set(lastPlan.items.map(p => p.r.id)); saveSel(); route = null;
@@ -1096,17 +1043,7 @@ $('#today').addEventListener('change', e => {
   if (e.target.id === 'dRegion') { day.region = e.target.value; saveDay(); renderToday(); }
   else if (e.target.dataset.t) { day[e.target.dataset.t] = e.target.checked; saveDay(); renderToday(); }
 });
-$('#today').addEventListener('input', e => {
-  if (e.target.id !== 'dAddr') return;
-  day.addr = e.target.value; saveDay();
-  clearTimeout(sugTimer); const q = day.addr.trim(), box = $('#dSug');
-  if (q.length < 3) { sugList = []; if (box) box.innerHTML = ''; return; }
-  sugTimer = setTimeout(async () => {
-    try { sugList = await suggestPlaces(q); } catch { sugList = []; }
-    const b = $('#dSug'); if (!b || $('#dAddr').value.trim() !== q) return;
-    b.innerHTML = sugList.map((p, i) => `<button type="button" data-sug="${i}">${esc(p.label)}</button>`).join('');
-  }, 400);
-});
+$('#today').addEventListener('input', e => { if (e.target.id === 'dAddr') { day.addr = e.target.value; saveDay(); } });
 $('#today').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'dAddr') { e.preventDefault(); $('#dFind').click(); } });
 // keep the Vandaag tab in sync when the start pin is dragged on the map
 startMarker.on('dragend', () => { localStorage.setItem('at_start_label', ''); renderToday(); });
@@ -1194,6 +1131,8 @@ Object.assign(D, {'Aperçu':'Overzicht','Relances à faire':'Opvolgingen','Meill
 Object.assign(D, {'Restaurants, cafés et pâtisseries de la zone':'Restaurants, cafés en patisserieën in de regio'});
 Object.assign(D, {'Carte':'Kaart','Chiffres':'Cijfers','Visités':'Bezocht','Visites (cette semaine)':'Bezoeken (deze week)','Entonnoir':'Trechter','Visites par semaine':'Bezoeken per week','Par personne (30 jours)':'Per persoon (30 dagen)','Quartiers':'Wijken','Objections':'Bezwaren','Intérêt produits':'Interesse per product','Pas encore de visites enregistrées. Les chiffres apparaissent après vos premières visites.':'Nog geen bezoeken vastgelegd. De cijfers verschijnen na jullie eerste bezoeken.','Aujourd’hui':'Vandaag','Combien de temps avez-vous ?':'Hoeveel tijd heb je?','Mettre dans ma tournée':'In mijn ronde zetten','Reprenez où vous en étiez.':'Pak de draad op waar je gebleven was.','Pas de site : proposez Amplify Site (dès 250 DH).':'Geen website: stel Amplify Site voor (vanaf 250 DH).','Beaucoup d’avis, donc du passage : parlez marges et caisse (POS dès 199 DH/mois).':'Veel reviews, dus veel klanten: praat over marges en kassa (POS vanaf 199 DH/maand).','Premier contact : demandez comment ils suivent leurs marges aujourd’hui.':'Eerste contact: vraag hoe ze nu hun marges bijhouden.','Ajoutez des restaurants avec une position (liste, import ou recherche en ligne) pour recevoir un conseil.':'Voeg restaurants met een locatie toe (lijst, import of online zoeken) om advies te krijgen.','Réglages du score':'Score-instellingen','Réinitialiser':'Standaard herstellen','Plus le nombre est grand, plus ce critère compte. Les réglages restent sur cet appareil.':'Hoe groter het getal, hoe zwaarder het criterium telt. De instellingen blijven op dit apparaat.','Réglages réinitialisés.':'Instellingen hersteld.','Pas de site web':'Geen website','A déjà un site web':'Heeft al een website','Avis Google (maximum)':'Google-reviews (maximum)','Bonne note Google':'Goede Google-score','Note Google basse':'Lage Google-score','Café dans un quartier difficile':'Café in een lastige buurt','Rendez-vous ou démo en cours':'Afspraak of demo bezig','Déjà intéressé':'Al geïnteresseerd','En période d’essai':'In proefperiode','Relance à faire':'Opvolging nodig','Base':'Basis','Score':'Score','Fermer':'Sluiten','Résultat':'Uitkomst','Pas là':'Niet aanwezig','Parlé au gérant':'Met manager gesproken','Intéressé':'Geïnteresseerd','RDV pris':'Afspraak gemaakt','Parlé avec':'Gesproken met','Intérêt':'Interesse','Objection':'Bezwaar','Prix':'Prijs','Déjà équipé':'Al uitgerust','Pas le temps':'Geen tijd','Pas le décideur':'Niet de beslisser','Autre':'Anders','Demain':'Morgen','+3 jours':'+3 dagen','+1 semaine':'+1 week','Visité':'Bezocht','Essai en cours':'Proefperiode','À relancer':'Opvolgen','Pas encore visité':'Nog niet bezocht','Prénom, rôle':'Voornaam, functie','Type':'Type','Site web':'Website','Inconnu':'Onbekend','Pas de site':'Geen website','A un site':'Heeft website','Note Google':'Google-score','Nombre d’avis':'Aantal reviews','Environnement':'Omgeving','Quartier agréable':'Fijne buurt','Moyen':'Matig','Quartier difficile':'Lastige buurt','Pâtisserie':'Patisserie','Client':'Klant','Chercher en ligne':'Online zoeken','Recherche en ligne':'Online zoeken','Nom du restaurant':'Naam restaurant','Tous les restaurants de la zone':'Alle restaurants in de regio','Fermer':'Sluiten','Ajouter':'Toevoegen','Déjà dans la liste':'Staat al in de lijst','Tout ajouter':'Alles toevoegen','Ajouté.':'Toegevoegd.','Aucun résultat en ligne.':'Niets gevonden.','Chargement des restaurants…':'Restaurants laden…','Service indisponible, réessayez.':'Service niet beschikbaar, probeer het later opnieuw.'});
 FRAG.push([/(\d+) visités · (\d+) positifs/,'$1 bezocht · $2 positief'],[/(\d+) à relancer/,'$1 opvolgen'],[/(\d+) pas encore visités/,'$1 nog niet bezocht'],[/(\d+) visites cette semaine/,'$1 bezoeken deze week'],[/^Relance prévue le /,'Opvolging gepland op '],[/ \(en retard\)/,' (te laat)'],[/ · pas de site/,' · geen website'],[/ · (\d+) avis/,' · $1 reviews'],[/ · jamais visité/,' · nog nooit bezocht'],[/(\d+) avis Google/,'$1 Google-reviews'],[/^À compléter : /,'Nog aan te vullen: '],[/Site web inconnu/,'Website onbekend'],[/Avis Google manquants/,'Google-reviews ontbreken'],[/Environnement non renseigné/,'Omgeving niet ingevuld'],[/ · visité /,' · bezocht '],[/^Visité(?= ·|$)/,'Bezocht'],[/^Intéressé(?= ·|$)/,'Geïnteresseerd'],[/^Essai en cours(?= ·|$)/,'Proefperiode'],[/— Pas là/,'— Niet aanwezig'],[/— Parlé au gérant/,'— Met manager gesproken'],[/— Intéressé/,'— Geïnteresseerd'],[/— RDV pris/,'— Afspraak gemaakt'],[/— Pas intéressé/,'— Niet geïnteresseerd'],[/\(sans note\)/,'(geen notitie)'],[/(· |— )par /,'$1door '],[/(\d+) résultats/,'$1 resultaten'],[/(\d+) nouveaux/,'$1 nieuw'],[/^(\d+) ajoutés\./,'$1 toegevoegd.'],[/^(\d+) restaurants \?$/,'$1 restaurants toevoegen?']);
+Object.assign(D, {'Site non fonctionnel':'Niet werkend','Site web non fonctionnel':'Website werkt niet','Site non fonctionnel : proposez Amplify Site (dès 250 DH).':'Website werkt niet: stel Amplify Site voor (vanaf 250 DH).'});
+FRAG.push([/ · site non fonctionnel/,' · website werkt niet']);
 let lang = localStorage.getItem('at_lang') || 'nl';
 function trNl(s) {
   const k = s.trim(); if (!k) return s;
@@ -1233,9 +1172,8 @@ new MutationObserver(ms => ms.forEach(m => {
   else if (m.type === 'characterData') doText(m.target);
   else doEl(m.target);
 })).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTR });
-Object.assign(D, {'Adresse introuvable. Essayez un quartier ou « Déplacer sur la carte ».':'Adres niet gevonden. Probeer een wijk of « Verplaats op de kaart ».'});
 Object.assign(D, {'Point de départ':'Startpunt','Adresse ou quartier':'Adres of wijk','Chercher':'Zoeken','Région':'Regio','Peu importe, le plus proche du départ':'Maakt niet uit, dichtst bij mijn start','Nombre d’arrêts':'Aantal stops','Déplacement':'Verplaatsing','À pied':'Te voet','En voiture':'Met de auto','Seulement nouveaux et fort potentiel':'Alleen nieuwe en hoge potentie','Inclure les relances':'Opvolgingen meenemen','Déplacer sur la carte':'Verplaats op de kaart','Ouvrir dans Google Maps':'Openen in Google Maps','Départ : repère sur la carte (Agdal par défaut)':'Start: pin op de kaart (standaard Agdal)'});
-FRAG.push([/position approximative/g,'positie bij benadering'],[/(\d+) positions trouvées, (\d+) approximatives\./,'$1 posities gevonden, $2 bij benadering.'],[/^Départ : (?=.)/,'Start: '],[/^Chercher les positions manquantes \((\d+)\)/,'Ontbrekende posities opzoeken ($1)'],[/(\d+) arrêts · /,'$1 stops · '],[/(\d+) positions trouvées, (\d+) introuvables\./,'$1 posities gevonden, $2 niet gevonden.'],[/Plus de restaurants ne correspondent pas aux filtres/,'Er zijn geen restaurants meer die aan de filters voldoen'],[/ \(certains n’ont pas encore de position\)/,' (sommige hebben nog geen positie)'],[/Essayez une autre région ou désactivez « nouveaux et fort potentiel »\./,'Probeer een andere regio of zet “alleen nieuwe en hoge potentie” uit.'],[/Aucun restaurant ne correspond\. Essayez une autre région, désactivez « nouveaux et fort potentiel »/,'Geen enkel restaurant past. Probeer een andere regio, zet “alleen nieuwe en hoge potentie” uit'],[/ ou cherchez les positions manquantes\./,' of zoek de ontbrekende posities op.'],[/Déplacez le repère D sur la carte, puis revenez sur Aujourd’hui\./,'Sleep de pin D op de kaart en ga dan terug naar Vandaag.']);
+FRAG.push([/^Départ : (?=.)/,'Start: '],[/^Chercher les positions manquantes \((\d+)\)/,'Ontbrekende posities opzoeken ($1)'],[/(\d+) arrêts · /,'$1 stops · '],[/(\d+) positions trouvées, (\d+) introuvables\./,'$1 posities gevonden, $2 niet gevonden.'],[/Plus de restaurants ne correspondent pas aux filtres/,'Er zijn geen restaurants meer die aan de filters voldoen'],[/ \(certains n’ont pas encore de position\)/,' (sommige hebben nog geen positie)'],[/Essayez une autre région ou désactivez « nouveaux et fort potentiel »\./,'Probeer een andere regio of zet “alleen nieuwe en hoge potentie” uit.'],[/Aucun restaurant ne correspond\. Essayez une autre région, désactivez « nouveaux et fort potentiel »/,'Geen enkel restaurant past. Probeer een andere regio, zet “alleen nieuwe en hoge potentie” uit'],[/ ou cherchez les positions manquantes\./,' of zoek de ontbrekende posities op.'],[/Déplacez le repère D sur la carte, puis revenez sur Aujourd’hui\./,'Sleep de pin D op de kaart en ga dan terug naar Vandaag.']);
 setLang(lang);
 showTab('today');
 
