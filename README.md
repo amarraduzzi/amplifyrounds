@@ -78,3 +78,8 @@ No SQL needed. The button "Restaurants, cafés en patisserieën in de regio" now
 
 No SQL needed. The tab "Vandaag" now builds a route for you: choose a starting point (address or neighbourhood, "Mijn locatie", or move the pin on the map), a region (or "doesn't matter, closest to my start"), the number of stops (6, 8, 12, 16) and walking or driving. Two switches: "Alleen nieuwe en hoge potentie" (never visited, status "te bezoeken", lead score 55 or higher) and "Opvolgingen meenemen" (due follow-ups, at most a third of the stops; without a region only those within 6 km of the start). The app picks stops that are close together and orders them shortest-first, with distance and time. Buttons: "In mijn ronde zetten" (calculates the real route on the map tab), "Openen in Google Maps" and Waze per stop. The button "Ontbrekende posities opzoeken" finds map positions for restaurants that have none (about 1 per second); those then take part in the route.
 
+
+## Update 26: mobiele app-ervaring
+
+Geen SQL nodig. Upload `index.html`, `sw.js`, `manifest.webmanifest` en de vier `.png` iconen naar de root van de repo.
+Installeren op het beginscherm: iPhone → Safari → Deel → "Zet op beginscherm"; Android → Chrome → menu → "App installeren".
