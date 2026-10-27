@@ -196,6 +196,37 @@ header h1{font-size:26px}dialog h2{font-size:24px}
 #today .btn.go{border-color:var(--accent);color:var(--accent);font-weight:600}
 #today .empty{background:#fff;border:1px dashed var(--line);border-radius:14px;padding:18px}
 @media (prefers-reduced-motion:reduce){#today .tg input,#today .tg input::after{transition:none}}
+
+/* ===== Secteurs / Couverture ===== */
+.sub{color:var(--mute);font-size:13px}
+#paneSectors{background:var(--bg)}
+#sectors{display:grid;gap:12px;padding-top:12px;padding-bottom:24px}
+#sectors .card,#sectors .sec{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:10px}
+#sectors .big{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+#sectors .big b{font-size:46px;font-stretch:62%;font-weight:800;line-height:1}
+#sectors .big span{color:var(--mute);font-size:14px}
+#sectors .sbar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:#E3E8E5}
+#sectors .sbar i{display:block;height:100%}
+#sectors .legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--mute)}
+#sectors .legend span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;background:var(--c)}
+#sectors .acts2{display:flex;flex-wrap:wrap;gap:8px}
+#sectors .btn.sm,#dlgClean .btn.sm{padding:0 14px;min-height:40px}
+#sectors .hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+#sectors .sec h4{margin:0;font-size:17px}
+#sectors .pct{font-weight:800;font-size:20px;font-stretch:62%}
+#sectors .sec.done{opacity:.72}
+#sectors .sec.focus{border-color:var(--green);box-shadow:0 0 0 3px var(--mint)}
+#sectors .tags{display:flex;flex-wrap:wrap;gap:6px;font-size:12.5px;color:var(--mute)}
+#sectors .tags span{background:#F2F5F3;border-radius:999px;padding:3px 9px}
+#sectors .tags .late{background:#FBEAE8;color:var(--danger);font-weight:600}
+#sectors .tags .ok{background:var(--mint);color:#00804A;font-weight:600}
+#sectors .tags:empty{display:none}
+#sectors .warn{background:#FFF6E0;border:1px solid #F0DDA8;border-radius:12px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;font-size:13.5px}
+#sectors .empty{background:#fff;border:1px dashed var(--line);border-radius:14px;padding:18px}
+#today .pill.ok{background:var(--mint);border-color:#9FDDBB;color:#00804A;font-weight:600}
+#cleanBody{display:grid;gap:10px}
+#cleanBody h3{margin:8px 0 0;font-size:15px}
+@media(max-width:820px){.tabs .ic{width:100%;max-width:54px}.tabs .lb{font-size:10px;white-space:nowrap}}
 </style>
 </head>
 <body>
@@ -210,6 +241,7 @@ header h1{font-size:26px}dialog h2{font-size:24px}
     </header>
     <div class="tabs" role="tablist">
       <button role="tab" id="tabToday" aria-selected="true"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M8 3v4M16 3v4M8.5 13l2.5 2.5 4.5-5"/></svg></span><span class="lb">Aujourd’hui</span></button>
+      <button role="tab" id="tabSectors" aria-selected="false"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6l5-2 6 2 5-2v14l-5 2-6-2-5 2z"/><path d="M9 4v14M15 6v14"/></svg></span><span class="lb">Secteurs</span></button>
       <button role="tab" id="tabOverview" aria-selected="false"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg></span><span class="lb">Aperçu</span></button>
       <button role="tab" id="tabList" aria-selected="false"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg></span><span class="lb">Restaurants</span></button>
       <button role="tab" id="tabStats" aria-selected="false"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V5M19 20v-6"/></svg></span><span class="lb">Chiffres</span></button>
@@ -217,6 +249,7 @@ header h1{font-size:26px}dialog h2{font-size:24px}
     </div>
 
     <section class="pane" id="paneToday"><div id="today"></div></section>
+<section class="pane" id="paneSectors" hidden><div id="sectors"></div></section>
 <section class="pane" id="paneOverview" hidden><div id="overview"></div></section>
 <section class="pane" id="paneStats" hidden><div id="stats"></div></section>
 <section class="pane" id="paneList" hidden>
@@ -225,6 +258,7 @@ header h1{font-size:26px}dialog h2{font-size:24px}
         <input id="q" type="search" placeholder="Chercher un restaurant" aria-label="Chercher">
         <select id="fStatus" aria-label="Statut"></select>
         <select id="fDistrict" aria-label="Quartier"></select>
+        <select id="fSector" aria-label="Secteur" hidden></select>
       </div>
       <div id="list"></div>
     </section>
@@ -291,6 +325,7 @@ header h1{font-size:26px}dialog h2{font-size:24px}
 <div class="two"><label>Note Google<input name="g_rating" inputmode="decimal" placeholder="4,5"></label><label>Nombre d’avis<input name="g_reviews" inputmode="numeric" placeholder="120"></label></div>
 <label>Environnement<select name="area"><option value="">—</option><option value="good">Quartier agréable</option><option value="ok">Moyen</option><option value="bad">Quartier difficile</option></select></label>
 <label>Statut<select name="status"></select></label>
+    <div class="two"><label>Secteur<input name="sector" list="sectorsList" placeholder="Auto"></label><label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink)"><input type="checkbox" name="closed" style="width:20px;height:20px;padding:0"> Fermé ou n’existe plus</label></div><datalist id="sectorsList"></datalist>
     <div class="foot">
       <button type="button" class="btn danger" id="btnDelete" hidden>Supprimer</button>
       <button type="button" class="btn" id="btnEditCancel">Annuler</button>
@@ -303,7 +338,7 @@ header h1{font-size:26px}dialog h2{font-size:24px}
 <dialog id="dlgVisit">
   <form method="dialog" id="fVisit">
     <h2 id="visitTitle">Visite</h2>
-    <div><div class="lbl">Résultat</div><div class="chips" id="chips"><button type="button" data-o="absent">Pas là</button><button type="button" data-o="talked">Parlé au gérant</button><button type="button" data-o="interested">Intéressé</button><button type="button" data-o="appt">RDV pris</button><button type="button" data-o="no">Pas intéressé</button></div><input type="hidden" name="outcome"></div>
+    <div><div class="lbl">Résultat</div><div class="chips" id="chips"><button type="button" data-o="absent">Pas là</button><button type="button" data-o="talked">Parlé au gérant</button><button type="button" data-o="interested">Intéressé</button><button type="button" data-o="appt">RDV pris</button><button type="button" data-o="no">Pas intéressé</button><button type="button" data-o="closed">Fermé</button></div><input type="hidden" name="outcome"></div>
 <div class="two"><label>Parlé avec<input name="contact_name" placeholder="Prénom, rôle"></label><label>Intérêt<select name="product"><option value="">—</option><option>POS</option><option>Profit</option><option>Site</option><option>Clients</option></select></label></div>
 <label>Objection<select name="objection"><option value="">—</option><option value="price">Prix</option><option value="equipped">Déjà équipé</option><option value="time">Pas le temps</option><option value="decider">Pas le décideur</option><option value="other">Autre</option></select></label>
 <label>Compte rendu<textarea name="note" rows="4" placeholder="Ce qui a été dit, ce qui l’intéresse, objections…"></textarea></label>
@@ -339,6 +374,14 @@ header h1{font-size:26px}dialog h2{font-size:24px}
 
 <dialog id="dlgWhy"><form method="dialog"><h2 id="whyTitle"></h2><div id="whyBody" class="sres"></div><div id="whyTodo" class="meta" style="color:var(--mute);font-size:13px"></div><div class="foot"><button class="btn primary" value="ok">Fermer</button></div></form></dialog>
 <dialog id="dlgW"><form method="dialog" id="fW"><h2>Réglages du score</h2><p style="margin:0;color:var(--mute);font-size:14px">Plus le nombre est grand, plus ce critère compte. Les réglages restent sur cet appareil.</p><div id="wFields" class="two"></div><div class="foot"><button type="button" class="btn" id="btnWReset">Réinitialiser</button><button type="button" class="btn" id="btnWCancel">Annuler</button><button class="btn primary" value="ok">Enregistrer</button></div></form></dialog>
+<dialog id="dlgClean">
+<form method="dialog" onsubmit="return false">
+<h2>Nettoyer</h2>
+<div id="cleanBody"></div>
+<div class="foot"><button type="button" class="btn primary" id="btnCleanClose">Fermer</button></div>
+</form>
+</dialog>
+
 <!-- Online search -->
 <dialog id="dlgSearch">
 <form method="dialog" id="fSearch" onsubmit="return false">
@@ -446,7 +489,7 @@ const store = {
 };
 
 // ====== State ======
-let rows = [];
+let rows = [], closedRows = [];
 let selected = new Set(JSON.parse(localStorage.getItem('at_sel') || '[]'));
 let start = JSON.parse(localStorage.getItem('at_start') || 'null') || { ...DEFAULT_START };
 let route = null;              // { order:[rows], geometry:[[lat,lng]], distance, duration, estimated }
@@ -473,18 +516,21 @@ map.on('click', e => {
 
 // ====== Rendering ======
 function filtered() {
-  const q = $('#q').value.trim().toLowerCase(), s = $('#fStatus').value, d = $('#fDistrict').value;
+  const q = $('#q').value.trim().toLowerCase(), s = $('#fStatus').value, d = $('#fDistrict').value, sc = $('#fSector').value;
   const toks = norm(q).split(/\s+/).filter(Boolean);
-  return rows.filter(r => (!s || (s === 'due' ? r.next_contact && r.next_contact <= new Date().toISOString().slice(0, 10) : s === 'todo' ? !r.last_visit_at : r.status === s)) && (!d || r.district === d) && (!toks.length || (h => toks.every(t => h.includes(t)))(norm([r.name, r.address, r.district, r.phone, (r.phone || '').replace(/\D/g, ''), STATUS[r.status]?.label].join(' ')))));
+  return rows.filter(r => (!s || (s === 'due' ? r.next_contact && r.next_contact <= new Date().toISOString().slice(0, 10) : s === 'todo' ? !r.last_visit_at : s === 'unclear' ? stageOf(r) === 'unclear' : r.status === s)) && (!d || r.district === d) && (!sc || r.sector === sc) && (!toks.length || (h => toks.every(t => h.includes(t)))(norm([r.name, r.address, r.district, r.phone, (r.phone || '').replace(/\D/g, ''), STATUS[r.status]?.label].join(' ')))));
 }
 function renderFilters() {
   const s = $('#fStatus'), cur = s.value;
-  s.innerHTML = '<option value="">Tous statuts</option><option value="due">À relancer</option><option value="todo">Pas encore visité</option>' + Object.entries(STATUS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+  s.innerHTML = '<option value="">Tous statuts</option><option value="due">À relancer</option><option value="todo">Pas encore visité</option><option value="unclear">Sans suite définie</option>' + Object.entries(STATUS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
   s.value = cur;
   const ds = [...new Set(rows.map(r => r.district).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   const d = $('#fDistrict'), cd = d.value;
   d.innerHTML = '<option value="">Tous quartiers</option>' + ds.map(x => `<option>${esc(x)}</option>`).join('');
   d.value = cd;
+  const secs = [...new Set(rows.map(r => r.sector).filter(Boolean))].sort(natCmp), sf = $('#fSector'), cs = sf.value;
+  sf.innerHTML = '<option value="">Tous secteurs</option>' + secs.map(x => `<option>${esc(x)}</option>`).join(''); sf.value = secs.includes(cs) ? cs : ''; sf.hidden = !secs.length;
+  $('#sectorsList').innerHTML = secs.map(x => `<option value="${esc(x)}">`).join('');
   $('#districts').innerHTML = ds.map(x => `<option value="${esc(x)}">`).join('');
 }
 function renderMarkers() {
@@ -545,7 +591,7 @@ function renderList() {
       <span class="dot" style="background:${STATUS[r.status]?.color}" title="${esc(STATUS[r.status]?.label)}"></span>
       <div>
         <button class="name" onclick="focusRow('${r.id}')">${esc(r.name)}</button>${leadScore(r) != null ? `<button class="score ${leadScore(r) >= 70 ? 'hi' : leadScore(r) >= 50 ? 'mid' : ''}" onclick="showWhy('${r.id}')" title="Pourquoi ce score ?">${leadScore(r)}</button>` : ''}
-        <div class="meta">${esc(STATUS[r.status]?.label)}${r.district ? ' · ' + esc(r.district) : ''}${noPos ? ' · sans position' : ''}${r.last_visit_at ? ' · visité ' + fmtD(r.last_visit_at) : ''}</div>
+        <div class="meta">${esc(STATUS[r.status]?.label)}${r.district ? ' · ' + esc(r.district) : ''}${r.sector ? ' · secteur ' + esc(r.sector) : ''}${noPos ? ' · sans position' : ''}${r.last_visit_at ? ' · visité ' + fmtD(r.last_visit_at) : ''}</div>
         ${r.next_step ? `<div class="next ${due ? 'due' : ''}">${due ? 'À relancer : ' : ''}${esc(r.next_step)}</div>` : ''}
       </div>
       <div class="acts">
@@ -576,7 +622,7 @@ function renderRoute() {
     route.order.forEach((r, i) => L.marker([r.lat, r.lng], { interactive: false, icon: L.divIcon({ className: '', html: `<div class="pin">${i + 1}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] }) }).addTo(routeLayer));
   }
 }
-function renderAll() { renderFilters(); renderMarkers(); renderList(); renderRoute(); renderToday(); }
+function renderAll() { renderFilters(); renderMarkers(); renderList(); renderRoute(); renderToday(); renderSectors(); if ($('#dlgClean').open) renderClean(); }
 function saveSel() { localStorage.setItem('at_sel', JSON.stringify([...selected])); }
 
 // ====== Actions ======
@@ -597,7 +643,7 @@ window.openEdit = id => {
   const r = id ? rows.find(x => x.id === id) : null;
   $('#editTitle').textContent = r ? 'Modifier le restaurant' : 'Nouveau restaurant';
   $('#btnDelete').hidden = !r;
-  ['name', 'district', 'address', 'phone', 'lat', 'lng', 'status', 'kind', 'g_rating', 'g_reviews', 'area', 'website_status'].forEach(k => f[k].value = r?.[k] ?? (k === 'status' ? 'new' : k === 'website_status' ? 'unknown' : ''));
+  ['name', 'district', 'address', 'phone', 'lat', 'lng', 'status', 'kind', 'g_rating', 'g_reviews', 'area', 'website_status', 'sector'].forEach(k => f[k].value = r?.[k] ?? (k === 'status' ? 'new' : k === 'website_status' ? 'unknown' : ''));
   $('#dlgEdit').showModal();
 };
 $('#btnAdd').onclick = () => openEdit(null);
@@ -621,7 +667,10 @@ $('#fEdit').addEventListener('submit', async e => {
   const r = { id: editingId || uid(), name: f.name.value.trim(), district: f.district.value.trim() || null, address: f.address.value.trim() || null,
     phone: f.phone.value.trim() || null, lat: num(f.lat.value), lng: num(f.lng.value), status: f.status.value,
  kind: f.kind.value || null, website_status: f.website_status.value, g_rating: num(f.g_rating.value), g_reviews: num(f.g_reviews.value) == null ? null : Math.round(num(f.g_reviews.value)), area: f.area.value || null };
-  try { await store.save(r); await reload(); toast('Enregistré.'); } catch (err) { toast('Erreur : ' + err.message, 5000); }
+  const prev = editingId ? rows.find(x => x.id === editingId) : null, sec = f.sector.value.trim() || null;
+  if ((prev?.sector || null) !== sec) { r.sector = sec; r.sector_locked = !!sec; }
+  if (f.closed.checked) { r.closed = true; selected.delete(r.id); saveSel(); route = null; }
+  try { await store.save(r); await afterChange(); toast(r.closed ? 'Marqué comme fermé.' : 'Enregistré.'); } catch (err) { toast(sqlHint(err), 7000); }
 });
 $('#btnDelete').onclick = async () => {
   if (!editingId || !confirm('Supprimer ce restaurant et son historique ?')) return;
@@ -640,7 +689,7 @@ window.openVisit = async id => {
   $('#visitHist').innerHTML = '';
   $('#dlgVisit').showModal();
   const vs = await store.visitsFor(id);
-  const OUTL = { absent: 'Pas là', talked: 'Parlé au gérant', interested: 'Intéressé', appt: 'RDV pris', no: 'Pas intéressé' };
+  const OUTL = { absent: 'Pas là', talked: 'Parlé au gérant', interested: 'Intéressé', appt: 'RDV pris', no: 'Pas intéressé', closed: 'Fermé' };
   $('#visitHist').innerHTML = vs.length ? '<b style="color:var(--ink)">Visites précédentes</b>' + vs.map(v => {
     const head = [OUTL[v.outcome], v.contact_name, v.visited_by ? 'par ' + v.visited_by : ''].filter(Boolean).join(' · ');
     return `<div>${fmtD(v.created_at)} — ${esc(head)}${head && v.note ? ' — ' : ''}${esc(v.note || (head ? '' : '(sans note)'))}</div>`;
@@ -658,7 +707,7 @@ $('#fVisit').addEventListener('submit', async e => {
   try {
     let by = 'moi'; if (sb) { const { data } = await sb.auth.getSession(); by = (data.session?.user?.email || '').split('@')[0] || null; }
 await store.addVisit({ id: uid(), restaurant_id: r.id, note: f.note.value.trim() || null, status_after: f.status.value, outcome: f.outcome.value || null, contact_name: f.contact_name.value.trim() || null, product: f.product.value || null, objection: f.objection.value || null, visited_by: by });
-    await store.save({ id: r.id, name: r.name, status: f.status.value, next_step: f.next_step.value.trim() || null, next_contact: f.next_contact.value || null, last_visit_at: new Date().toISOString() });
+    await store.save({ id: r.id, name: r.name, status: f.status.value, next_step: f.next_step.value.trim() || null, next_contact: f.next_contact.value || null, last_visit_at: new Date().toISOString(), ...(f.outcome.value === 'closed' ? { closed: true } : {}) });
     await reload(); toast('Visite enregistrée.');
   } catch (err) { toast('Erreur : ' + err.message, 5000); }
 });
@@ -714,10 +763,10 @@ if ($('#csvUpdate').checked) {
   }
   if (upd) await reload();
 }
-const seen = new Set(rows.map(x => norm(x.name))); let skipped = 0;
+const seen = new Set(rows.concat(closedRows).map(x => norm(x.name))); let skipped = 0;
 const items = allItems.filter(r => {
   const k = norm(r.name);
-  const dup = seen.has(k) || rows.some(x => x.lat != null && r.lat != null && haversine(x, r) < 40 && (norm(x.name).includes(k) || k.includes(norm(x.name))));
+  const dup = seen.has(k) || rows.concat(closedRows).some(x => x.lat != null && r.lat != null && haversine(x, r) < 40 && (norm(x.name).includes(k) || k.includes(norm(x.name))));
   if (dup) { skipped++; return false; } seen.add(k); return true;
 });
 if (!items.length) return toast(`0 importés, ${skipped} déjà dans la liste${upd ? ', ' + upd + ' mis à jour' : ''}.`, 6000);
@@ -727,7 +776,7 @@ if (!items.length) return toast(`0 importés, ${skipped} déjà dans la liste${u
     try { const p = await geocode([todo[i].address, todo[i].district, todo[i].name].filter(Boolean).join(', ')); if (p) { todo[i].lat = p.lat; todo[i].lng = p.lng; } } catch {}
     await sleep(1100);
   }
-  try { await store.saveMany(items); await reload(); const miss = items.filter(r => r.lat == null).length; toast(`${items.length} importés${upd ? ', ' + upd + ' mis à jour' : ''}${skipped ? ', ' + skipped + ' déjà dans la liste' : ''}${miss ? ', ' + miss + ' sans position' : ''}.`, 6000); $('#csvText').value = ''; $('#csvFile').value = ''; }
+  try { await store.saveMany(items); await afterChange(); const miss = items.filter(r => r.lat == null).length; toast(`${items.length} importés${upd ? ', ' + upd + ' mis à jour' : ''}${skipped ? ', ' + skipped + ' déjà dans la liste' : ''}${miss ? ', ' + miss + ' sans position' : ''}.`, 6000); $('#csvText').value = ''; $('#csvFile').value = ''; }
   catch (err) { toast('Erreur : ' + err.message, 6000); }
 });
 
@@ -803,19 +852,20 @@ window.wazeTo = id => { const r = rows.find(x => x.id === id); if (r) window.ope
 
 // ====== Tabs & filters ======
 function showTab(w) {
-  [['today', '#paneToday', '#tabToday'], ['list', '#paneList', '#tabList'], ['route', '#paneRoute', '#tabRoute'], ['stats', '#paneStats', '#tabStats'], ['overview', '#paneOverview', '#tabOverview']].forEach(([k, pn, t]) => { $(pn).hidden = k !== w; $(t).setAttribute('aria-selected', k === w); });
+  [['today', '#paneToday', '#tabToday'], ['list', '#paneList', '#tabList'], ['route', '#paneRoute', '#tabRoute'], ['stats', '#paneStats', '#tabStats'], ['overview', '#paneOverview', '#tabOverview'], ['sectors', '#paneSectors', '#tabSectors']].forEach(([k, pn, t]) => { $(pn).hidden = k !== w; $(t).setAttribute('aria-selected', k === w); });
   document.body.dataset.tab = w;
   if (w === 'route') map.invalidateSize();
   if (w === 'today') renderToday();
   if (w === 'stats') renderStats();
   if (w === 'overview') renderOverview();
+  if (w === 'sectors') renderSectors();
 }
-$('#tabToday').onclick = () => showTab('today'); $('#tabList').onclick = () => showTab('list'); $('#tabRoute').onclick = () => showTab('route'); $('#tabStats').onclick = () => showTab('stats'); $('#tabOverview').onclick = () => showTab('overview');
-['#q', '#fStatus', '#fDistrict'].forEach(s => $(s).addEventListener('input', renderList));
+$('#tabToday').onclick = () => showTab('today'); $('#tabList').onclick = () => showTab('list'); $('#tabRoute').onclick = () => showTab('route'); $('#tabStats').onclick = () => showTab('stats'); $('#tabOverview').onclick = () => showTab('overview'); $('#tabSectors').onclick = () => showTab('sectors');
+['#q', '#fStatus', '#fDistrict', '#fSector'].forEach(s => $(s).addEventListener('input', renderList));
 
 // ====== Boot ======
 async function reload() {
-  rows = await store.list();
+  const all = await store.list(); rows = all.filter(r => !r.closed); closedRows = all.filter(r => r.closed);
   selected = new Set([...selected].filter(id => rows.some(r => r.id === id)));
   renderAll();
   if (rows.some(r => r.lat != null) && !reload.done) { map.fitBounds(L.latLngBounds(rows.filter(r => r.lat != null).map(r => [r.lat, r.lng])).pad(.2)); reload.done = true; }
@@ -842,7 +892,7 @@ async function boot() {
 // ====== Recherche en ligne (OpenStreetMap) ======
 const BBOX = { s: 33.85, w: -7.05, n: 34.12, e: -6.60 }; // Témara · Rabat · Salé
 let sres = [], smode = 'name';
-const isDup = r => { const k = norm(r.name); return rows.some(x => norm(x.name) === k || (x.lat != null && haversine(x, r) < 40 && (norm(x.name).includes(k) || k.includes(norm(x.name))))); };
+const isDup = r => { const k = norm(r.name); return rows.concat(closedRows).some(x => norm(x.name) === k || (x.lat != null && haversine(x, r) < 40 && (norm(x.name).includes(k) || k.includes(norm(x.name))))); };
 function fromNom(o) {
   const a = o.address || {}, t = o.extratags || {};
   const district = a.suburb || a.neighbourhood || a.city_district || a.quarter || a.town || a.city || null;
@@ -898,14 +948,14 @@ $('#btnSClose').onclick = () => $('#dlgSearch').close();
 $('#sres').addEventListener('click', async e => {
   const b = e.target.closest('button[data-i]'); if (!b) return;
   b.disabled = true;
-  try { await store.save(toRow(sres[+b.dataset.i])); await reload(); renderSearch(); toast('Ajouté.'); } catch (err) { b.disabled = false; toast('Erreur : ' + err.message, 5000); }
+  try { await store.save(toRow(sres[+b.dataset.i])); await afterChange(); renderSearch(); toast('Ajouté.'); } catch (err) { b.disabled = false; toast('Erreur : ' + err.message, 5000); }
 });
 $('#btnAddAll').onclick = async () => {
   const toks = smode === 'area' ? norm($('#sq').value).split(/\s+/).filter(Boolean) : [];
   const add = sres.filter(r => toks.every(t => norm(r.name + ' ' + (r.district || '')).includes(t)) && !isDup(r)).map(toRow);
   if (!add.length) return;
   if (!confirm(add.length + ' restaurants ?')) return;
-  try { await store.saveMany(add); await reload(); renderSearch(); toast(`${add.length} ajoutés.`, 4000); } catch (err) { toast('Erreur : ' + err.message, 5000); }
+  try { await store.saveMany(add); await afterChange(); renderSearch(); toast(`${add.length} ajoutés.`, 4000); } catch (err) { toast('Erreur : ' + err.message, 5000); }
 };
 
 const RANK = ['new', 'visited', 'interested', 'appt', 'demo', 'trial', 'client'], OUT = { talked: 'visited', interested: 'interested', appt: 'appt', no: 'lost' };
@@ -921,7 +971,7 @@ $('#dates').addEventListener('click', e => {
 
 // ====== Aujourd’hui : tournée intelligente ======
 const HI = 55; // minimum lead score for "high potential"
-let day = Object.assign({ n: 8, region: '', newOnly: true, followUps: true, mode: 'walk', addr: '' }, ls('at_day', '{}')), lastPlan = null, geoBusy = false;
+let day = Object.assign({ n: 8, region: '', newOnly: true, followUps: true, mode: 'walk', addr: '', focus: '' }, ls('at_day', '{}')), lastPlan = null, geoBusy = false;
 const saveDay = () => localStorage.setItem('at_day', JSON.stringify(day));
 const startLabel = () => localStorage.getItem('at_start_label') || '';
 function setStart(p, label) {
@@ -934,25 +984,38 @@ function regionOptions() {
   return [...m.values()].sort((a, b) => b.n - a.n);
 }
 function planDay() {
-  const today = new Date().toISOString().slice(0, 10), now = Date.now(), n = day.n;
+  const today = new Date().toISOString().slice(0, 10), now = Date.now(), n = day.n, F = day.focus || '';
   const inReg = r => !day.region || norm(r.district || '') === day.region;
   const live = rows.filter(r => r.lat != null && r.lng != null && r.status !== 'client' && r.status !== 'lost');
   const recent = r => r.last_visit_at && now - new Date(r.last_visit_at) < 7 * 864e5;
   const isDue = r => r.next_contact && r.next_contact <= today;
-  const picks = [];
-  if (day.followUps) {
-    const maxM = day.region ? Infinity : 6000; // without a region, only follow-ups within 6 km of the start
-    live.filter(r => isDue(r) && inReg(r) && haversine(start, r) <= maxM).sort((a, b) => a.next_contact.localeCompare(b.next_contact))
-      .slice(0, Math.max(1, Math.round(n / 3))).forEach(r => picks.push({ r, due: true }));
-  }
-  const ok = r => !recent(r) && inReg(r) && (!day.newOnly || (!r.last_visit_at && r.status === 'new' && leadScore(r) >= HI));
-  let pool = live.filter(r => !picks.some(p => p.r === r) && ok(r));
-  const poolSize = pool.length;
-  while (picks.length < n && pool.length) {
-    const pts = [start, ...picks.map(p => p.r)], c = { lat: pts.reduce((s, x) => s + x.lat, 0) / pts.length, lng: pts.reduce((s, x) => s + x.lng, 0) / pts.length };
-    let best = null, bv = -1e9;
-    for (const r of pool) { const v = leadScore(r) - 3 * haversine(c, r) / 1000; if (v > bv) { bv = v; best = r; } }
-    picks.push({ r: best, due: false }); pool = pool.filter(x => x !== best);
+  const picks = [], has = r => picks.some(p => p.r === r);
+  const fill = (pool, val, nb) => { // greedy: keep adding the best stop next to the group built so far
+    pool = pool.filter(r => !has(r));
+    const size = pool.length;
+    while (picks.length < n && pool.length) {
+      const pts = [start, ...picks.map(p => p.r)], c = { lat: pts.reduce((s, x) => s + x.lat, 0) / pts.length, lng: pts.reduce((s, x) => s + x.lng, 0) / pts.length };
+      let best = null, bv = -1e9;
+      for (const r of pool) { const v = val(r, c); if (v > bv) { bv = v; best = r; } }
+      picks.push({ r: best, due: false, nb: !!nb }); pool = pool.filter(x => x !== best);
+    }
+    return size;
+  };
+  let poolSize = 0;
+  if (F) { // focus on one sector: due follow-ups first, then finish the sector, then fill up from neighbouring sectors
+    if (day.followUps) live.filter(r => isDue(r) && r.sector === F).sort((a, b) => a.next_contact.localeCompare(b.next_contact))
+      .slice(0, Math.max(1, Math.ceil(n / 2))).forEach(r => picks.push({ r, due: true, nb: false }));
+    const val = (r, c) => 0.3 * (leadScore(r) ?? 0) - 6 * haversine(c, r) / 1000;
+    poolSize = fill(live.filter(r => r.sector === F && !recent(r) && ['todo', 'unclear'].includes(stageOf(r))), val);
+    if (picks.length < n) fill(live.filter(r => r.sector !== F && !recent(r) && stageOf(r) === 'todo'), val, true);
+  } else {
+    if (day.followUps) {
+      const maxM = day.region ? Infinity : 6000; // without a region, only follow-ups within 6 km of the start
+      live.filter(r => isDue(r) && inReg(r) && haversine(start, r) <= maxM).sort((a, b) => a.next_contact.localeCompare(b.next_contact))
+        .slice(0, Math.max(1, Math.round(n / 3))).forEach(r => picks.push({ r, due: true, nb: false }));
+    }
+    const ok = r => !recent(r) && inReg(r) && (!day.newOnly || (!r.last_visit_at && r.status === 'new' && leadScore(r) >= HI));
+    poolSize = fill(live.filter(ok), (r, c) => leadScore(r) - 3 * haversine(c, r) / 1000);
   }
   if (!picks.length) return { items: [], dist: 0, dur: 0, poolSize };
   const loop = $('#loop').checked, pts = [start, ...picks.map(p => p.r)];
@@ -962,6 +1025,7 @@ function planDay() {
   return { items, dist, dur: dist / (day.mode === 'walk' ? 1.25 : 7), poolSize };
 }
 function tipFor(r) {
+  if (stageOf(r) === 'unclear') return 'Déjà visité : obtenez une suite claire (prochaine étape ou refus).';
   if (['interested', 'appt', 'demo', 'trial'].includes(r.status)) return 'Reprenez où vous en étiez.';
   if (r.website_status === 'no') return 'Pas de site : proposez Amplify Site (dès 250 DH).';
   if (r.website_status === 'broken') return 'Site non fonctionnel : proposez Amplify Site (dès 250 DH).';
@@ -976,40 +1040,44 @@ function renderToday() {
     nWeek = rows.filter(r => r.last_visit_at && now - new Date(r.last_visit_at) < 7 * 864e5).length;
   const regs = regionOptions(), missing = rows.filter(r => r.lat == null).length, sl = startLabel();
   if (day.region && !regs.some(o => o.k === day.region)) day.region = '';
+  const SS = sectorStats().sort((a, b) => natCmp(a.name, b.name));
+  if (day.focus && !SS.some(x => x.name === day.focus)) day.focus = '';
+  const FS = day.focus ? SS.find(x => x.name === day.focus) : null;
   lastPlan = planDay();
   const P = lastPlan, tog = (k, t) => `<label class="tg"><input type="checkbox" data-t="${k}" ${day[k] ? 'checked' : ''}><span>${t}</span></label>`;
   const seg = (a, items, cur) => items.map(([v, t]) => `<button type="button" data-${a}="${v}" aria-pressed="${String(v) === String(cur)}" class="${String(v) === String(cur) ? 'on' : ''}">${t}</button>`).join('');
   const pin = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg>';
-  const stops = P.items.length ? `<ol class="stops"><li class="stop"><span class="num start">D</span><div><b>Départ</b></div></li>${P.items.map(({ r, due }, i) => {
+  const stops = P.items.length ? `<ol class="stops"><li class="stop"><span class="num start">D</span><div><b>Départ</b></div></li>${P.items.map(({ r, due, nb }, i) => {
     const v = r.g_reviews, late = due && r.next_contact < today;
     const why = due ? `Relance prévue le ${fmtD(r.next_contact)}${late ? ' (en retard)' : ''}${r.next_step ? ' : ' + esc(r.next_step) : ''}`
-      : `Score ${leadScore(r)}${r.website_status === 'no' ? ' · pas de site' : r.website_status === 'broken' ? ' · site non fonctionnel' : ''}${v ? ' · ' + v + ' avis' : ''}${r.last_visit_at ? '' : ' · jamais visité'}`;
+      : `Score ${leadScore(r)}${r.website_status === 'no' ? ' · pas de site' : r.website_status === 'broken' ? ' · site non fonctionnel' : ''}${v ? ' · ' + v + ' avis' : ''}${r.last_visit_at ? '' : ' · jamais visité'}${r.last_visit_at && stageOf(r) === 'unclear' ? ' · visité, suite à définir' : ''}${nb ? ' · secteur voisin : ' + esc(r.sector || '') : ''}`;
     return `<li class="stop${due ? ' fu' : ''}${late ? ' late' : ''}"><span class="num">${i + 1}</span><div><b>${esc(r.name)}</b><div class="leg ${late ? 'late' : ''}">${esc(r.district || '')}${r.district ? ' · ' : ''}${why}</div><div class="tip">${tipFor(r)}</div><div class="acts"><button class="btn sm" onclick="wazeTo('${r.id}')">Waze</button><button class="btn sm go" onclick="openVisit('${r.id}')">Visite</button></div></div></li>`;
   }).join('')}</ol>${P.items.length < day.n ? `<div class="empty">Plus de restaurants ne correspondent pas aux filtres${missing ? ' (certains n’ont pas encore de position)' : ''}. Essayez une autre région ou désactivez « nouveaux et fort potentiel ».</div>` : ''}`
-  : `<div class="empty">${rows.length ? 'Aucun restaurant ne correspond. Essayez une autre région, désactivez « nouveaux et fort potentiel »' + (missing ? ' ou cherchez les positions manquantes.' : '.') : 'Ajoutez des restaurants avec une position (liste, import ou recherche en ligne) pour recevoir un conseil.'}</div>`;
-  el.innerHTML = `<div class="strip"><span class="pill${nDue ? ' hot' : ''}">${nDue} à relancer</span><span class="pill">${nNew} pas encore visités</span><span class="pill">${nWeek} visites cette semaine</span></div>
+  : day.focus ? '<div class="empty">Ce secteur est terminé : tout est visité avec une suite claire. Choisissez le secteur suivant.</div>' : `<div class="empty">${rows.length ? 'Aucun restaurant ne correspond. Essayez une autre région, désactivez « nouveaux et fort potentiel »' + (missing ? ' ou cherchez les positions manquantes.' : '.') : 'Ajoutez des restaurants avec une position (liste, import ou recherche en ligne) pour recevoir un conseil.'}</div>`;
+  el.innerHTML = `<div class="strip"><span class="pill${nDue ? ' hot' : ''}">${nDue} à relancer</span><span class="pill">${nNew} pas encore visités</span><span class="pill">${nWeek} visites cette semaine</span>${FS ? `<span class="pill ok">${esc(FS.name)} : ${FS.done}/${FS.total} traités</span>` : ''}</div>
 <section class="card">
+${SS.length ? `<label><div class="lbl">Secteur en focus</div><select id="dFocus"><option value="">Pas de focus, meilleurs scores</option>${SS.map(x => `<option value="${esc(x.name)}" ${x.name === day.focus ? 'selected' : ''}>${esc(x.name)} · ${x.done}/${x.total}</option>`).join('')}</select></label>` : ''}
 <div class="find"><input id="dAddr" type="search" aria-label="Adresse ou quartier" placeholder="Adresse ou quartier" value="${esc(day.addr)}"><button class="btn" id="dFind" type="button">Chercher</button></div>
 <div class="from">${pin}<span class="fl">${sl ? 'Départ : ' + esc(sl) : 'Départ : repère sur la carte (Agdal par défaut)'}</span><span class="lks"><button class="lk" id="dGeo" type="button">Ma position</button><a href="#" class="lk" id="dPin">Déplacer sur la carte</a></span></div>
-<label><div class="lbl">Région</div><select id="dRegion"><option value="">Peu importe, le plus proche du départ</option>${regs.map(o => `<option value="${esc(o.k)}" ${o.k === day.region ? 'selected' : ''}>${esc(o.label)} (${o.n})</option>`).join('')}</select></label>
+${day.focus ? '' : `<label><div class="lbl">Région</div><select id="dRegion"><option value="">Peu importe, le plus proche du départ</option>${regs.map(o => `<option value="${esc(o.k)}" ${o.k === day.region ? 'selected' : ''}>${esc(o.label)} (${o.n})</option>`).join('')}</select></label>`}
 <div class="two2"><div><div class="lbl">Nombre d’arrêts</div><div class="seg" id="dN">${seg('n', [6, 8, 12, 16].map(h => [h, h]), day.n)}</div></div>
 <div><div class="lbl">Déplacement</div><div class="seg" id="dMode">${seg('m', [['walk', 'À pied'], ['car', 'En voiture']], day.mode)}</div></div></div>
-<div class="tgs">${tog('newOnly', 'Seulement nouveaux et fort potentiel')}${tog('followUps', 'Inclure les relances')}</div>
+<div class="tgs">${day.focus ? '' : tog('newOnly', 'Seulement nouveaux et fort potentiel')}${tog('followUps', 'Inclure les relances')}</div>
 ${missing ? `<button class="btn miss" id="dLocate" type="button">Chercher les positions manquantes (${missing})</button>` : ''}
 </section>
 ${P.items.length ? `<section class="plan"><div class="summary">${P.items.length} arrêts · ${km(P.dist)} · ≈ ${mins(P.dur)}</div><div class="line"><button class="btn primary" id="btnPlanGo">Mettre dans ma tournée</button><button class="btn" id="dGmaps" type="button">Ouvrir dans Google Maps</button></div></section>` : ''}
 ${stops}`;
 }
-async function locateMissing() {
+async function locateMissing(btn) {
   const todo = rows.filter(r => r.lat == null); if (!todo.length) return;
-  geoBusy = true; const b = $('#dLocate'); b.disabled = true; let ok = 0;
+  geoBusy = true; const b = btn || $('#dLocate'); if (b) b.disabled = true; let ok = 0;
   for (let i = 0; i < todo.length; i++) {
-    b.textContent = (i + 1) + '/' + todo.length;
+    if (b) b.textContent = (i + 1) + '/' + todo.length;
     try { const p = await geocode([todo[i].address, todo[i].district, todo[i].name].filter(Boolean).join(', ')); if (p) { await store.save({ id: todo[i].id, name: todo[i].name, lat: p.lat, lng: p.lng }); ok++; } } catch {}
     await sleep(1100);
   }
   geoBusy = false;
-  try { await reload(); } catch {}
+  try { await afterChange(); } catch {}
   toast(`${ok} positions trouvées, ${todo.length - ok} introuvables.`, 5000);
 }
 $('#today').addEventListener('click', async e => {
@@ -1041,12 +1109,243 @@ $('#today').addEventListener('click', async e => {
 });
 $('#today').addEventListener('change', e => {
   if (e.target.id === 'dRegion') { day.region = e.target.value; saveDay(); renderToday(); }
+  else if (e.target.id === 'dFocus') { day.focus = e.target.value; saveDay(); renderToday(); renderSectors(); }
   else if (e.target.dataset.t) { day[e.target.dataset.t] = e.target.checked; saveDay(); renderToday(); }
 });
 $('#today').addEventListener('input', e => { if (e.target.id === 'dAddr') { day.addr = e.target.value; saveDay(); } });
 $('#today').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'dAddr') { e.preventDefault(); $('#dFind').click(); } });
 // keep the Vandaag tab in sync when the start pin is dragged on the map
 startMarker.on('dragend', () => { localStorage.setItem('at_start_label', ''); renderToday(); });
+
+// ====== Secteurs, couverture et nettoyage ======
+const tt = (fr, nl) => lang === 'nl' ? nl : fr;
+const sqlHint = err => /sector|closed|column/i.test(err?.message || '') ? tt('Exécutez d’abord schema-update-3.sql dans Supabase.', 'Voer eerst schema-update-3.sql uit in Supabase.') : 'Erreur : ' + err.message;
+const GENERIC = new Set(['rabat', 'sale', 'temara', 'maroc', 'morocco', 'ma']);
+const SEC_TARGET = 20, SEC_MIN = 10, SEC_MAX = 26;
+const natCmp = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true });
+
+// Stage of a restaurant. "Done" = client, in discussion, follow-up planned, or not interested.
+const stageOf = r => {
+  if (r.status === 'client') return 'client';
+  if (r.status === 'lost') return 'lost';
+  if (!r.last_visit_at && r.status === 'new') return 'todo';
+  if (['interested', 'appt', 'demo', 'trial'].includes(r.status)) return 'talk';
+  return (r.next_step || r.next_contact) ? 'follow' : 'unclear';
+};
+const STAGES = [['client', 'Client', '#05B962'], ['talk', 'En discussion', '#D98E04'], ['follow', 'Suivi prévu', '#0A3F7A'], ['lost', 'Pas intéressé', '#B8433A'], ['unclear', 'Sans suite définie', '#9FB0BB'], ['todo', 'À visiter', '#D3DBD6']];
+const emptyStages = () => ({ client: 0, talk: 0, follow: 0, lost: 0, unclear: 0, todo: 0 });
+const doneOf = c => c.client + c.talk + c.follow + c.lost;
+
+// Store helpers for sectors and merging
+store.setSector = async (ids, sector, locked) => {
+  const patch = { sector }; if (locked !== undefined) patch.sector_locked = locked;
+  if (sb) {
+    for (let i = 0; i < ids.length; i += 40) { const { error } = await sb.from('restaurants').update(patch).in('id', ids.slice(i, i + 40)); if (error) throw error; }
+    return;
+  }
+  const a = ls('at_rows', '[]'); a.forEach(x => { if (ids.includes(x.id)) Object.assign(x, patch); }); localStorage.setItem('at_rows', JSON.stringify(a));
+};
+store.moveVisits = async (fromIds, toId) => {
+  if (!fromIds.length) return;
+  if (sb) { const { error } = await sb.from('visits').update({ restaurant_id: toId }).in('restaurant_id', fromIds); if (error) throw error; return; }
+  const a = ls('at_visits', '[]'); a.forEach(v => { if (fromIds.includes(v.restaurant_id)) v.restaurant_id = toId; }); localStorage.setItem('at_visits', JSON.stringify(a));
+};
+async function afterChange() { await reload(); await autoAssignNew(false); }
+
+// Balanced geographic split of pts into k compact groups
+function bisect(pts, k) {
+  if (k <= 1 || pts.length <= 1) return [pts];
+  const cosl = Math.cos(34 * Math.PI / 180);
+  const la = pts.map(p => p.lat), ln = pts.map(p => p.lng);
+  const dy = Math.max(...la) - Math.min(...la), dx = (Math.max(...ln) - Math.min(...ln)) * cosl;
+  const key = dx > dy ? 'lng' : 'lat', s = pts.slice().sort((a, b) => a[key] - b[key]);
+  const kl = Math.floor(k / 2), cut = Math.round(s.length * kl / k);
+  return [...bisect(s.slice(0, cut), kl), ...bisect(s.slice(cut), k - kl)];
+}
+// Compute a sector name for every restaurant in pool (all have coordinates)
+function computeSectors(pool) {
+  const labelled = rows.concat(closedRows).filter(r => r.lat != null && r.district && !GENERIC.has(norm(r.district)));
+  const show = new Map(), lab = new Map(), groups = new Map();
+  pool.forEach(r => {
+    let k = r.district && !GENERIC.has(norm(r.district)) ? norm(r.district) : '', disp = k ? r.district.trim() : '';
+    if (!k) { // no usable district: take the one of the nearest restaurant within 1.5 km
+      let best = null, bd = 1500;
+      for (const x of labelled) { const d = haversine(r, x); if (d < bd) { bd = d; best = x; } }
+      if (best) { k = norm(best.district); disp = best.district.trim(); }
+      else if (r.district) { k = norm(r.district); disp = r.district.trim(); } // isolated: keep the city name (Témara, Salé…)
+    }
+    if (k && !show.has(k)) show.set(k, disp);
+    lab.set(r.id, k);
+    (groups.get(k) || groups.set(k, []).get(k)).push(r);
+  });
+  let bigs = [...groups.entries()].filter(([, g]) => g.length >= SEC_MIN);
+  const small = [...groups.entries()].filter(([, g]) => g.length < SEC_MIN);
+  if (!bigs.length && small.length) { // tiny data set: everything in one group
+    const top = small.sort((a, b) => b[1].length - a[1].length)[0];
+    bigs = [[top[0], small.flatMap(x => x[1])]];
+  } else {
+    small.forEach(([, g]) => { // merge each small group into the nearest big group
+      let bj = null, bd = Infinity;
+      for (const b of bigs) for (const p of g) for (const q of b[1]) { const d = haversine(p, q); if (d < bd) { bd = d; bj = b; } }
+      if (bj) bj[1].push(...g);
+    });
+  }
+  const parts = [];
+  bigs.forEach(([k, g]) => {
+    const p = g.length <= SEC_MAX ? 1 : Math.max(2, Math.round(g.length / SEC_TARGET));
+    bisect(g, p).forEach(part => { if (part.length) parts.push({ rows: part, name: show.get(k) || 'Autres quartiers', lat: part.reduce((s, x) => s + x.lat, 0) / part.length, lng: part.reduce((s, x) => s + x.lng, 0) / part.length }); });
+  });
+  const byName = new Map(); parts.forEach(p => (byName.get(p.name) || byName.set(p.name, []).get(p.name)).push(p));
+  byName.forEach(list => { if (list.length > 1) list.sort((a, b) => b.lat - a.lat || a.lng - b.lng).forEach((p, i) => { p.name += ' ' + (i + 1); }); });
+  const out = new Map(); parts.forEach(p => p.rows.forEach(r => out.set(r.id, p.name)));
+  return out;
+}
+async function doAssign() {
+  const pool = rows.filter(r => r.lat != null && !r.sector_locked);
+  if (!pool.length) return toast('Rien à répartir : aucun restaurant n’a de position.', 4500);
+  const had = rows.some(r => r.sector);
+  if (!confirm(had ? tt('Répartir à nouveau tous les restaurants en secteurs d’environ 20 adresses proches ? Les secteurs que vous avez réglés vous-même restent en place.', 'Alle restaurants opnieuw indelen in sectoren van ongeveer 20 adressen dicht bij elkaar? Sectoren die je zelf hebt ingesteld of hernoemd blijven staan.')
+    : tt('Répartir les restaurants en secteurs d’environ 20 adresses proches les unes des autres ? Vous pourrez les renommer ensuite.', 'De restaurants indelen in sectoren van ongeveer 20 adressen dicht bij elkaar? Je kunt ze daarna hernoemen.'))) return;
+  toast('Répartition…', 2500);
+  const m = computeSectors(pool), by = new Map();
+  pool.forEach(r => { const s = m.get(r.id); if (s && s !== r.sector) (by.get(s) || by.set(s, []).get(s)).push(r.id); });
+  try { for (const [s, ids] of by) await store.setSector(ids, s, false); await reload(); toast(`${pool.length} restaurants répartis en ${new Set(m.values()).size} secteurs.`, 5000); }
+  catch (err) { toast(sqlHint(err), 7000); }
+}
+// New restaurants join the sector of their nearest neighbour (only once sectors exist)
+async function autoAssignNew(manual) {
+  const have = rows.filter(r => r.sector && r.lat != null), fresh = rows.filter(r => !r.sector && r.lat != null);
+  if (!have.length || !fresh.length) return 0;
+  const by = new Map(); let n = 0;
+  fresh.forEach(r => {
+    let b = null, bd = manual ? Infinity : 3000;
+    for (const x of have) { const d = haversine(r, x); if (d < bd) { bd = d; b = x; } }
+    if (b) { (by.get(b.sector) || by.set(b.sector, []).get(b.sector)).push(r.id); n++; }
+  });
+  if (!n) return 0;
+  try { for (const [s, ids] of by) await store.setSector(ids, s); await reload(); if (manual) toast(`${n} nouveaux restaurants répartis.`, 4000); }
+  catch (err) { if (manual) toast(sqlHint(err), 7000); return 0; }
+  return n;
+}
+
+function sectorStats() {
+  const today = new Date().toISOString().slice(0, 10), m = new Map();
+  rows.forEach(r => {
+    if (!r.sector) return;
+    let s = m.get(r.sector); if (!s) m.set(r.sector, s = { name: r.sector, total: 0, c: emptyStages(), dist: new Map(), due: 0 });
+    const st = stageOf(r); s.total++; s.c[st]++;
+    if (r.district) s.dist.set(r.district, (s.dist.get(r.district) || 0) + 1);
+    if (r.next_contact && r.next_contact <= today && st !== 'client' && st !== 'lost') s.due++;
+  });
+  return [...m.values()].map(s => { s.done = doneOf(s.c); s.pct = Math.round(100 * s.done / s.total); return s; });
+}
+const segBar = (c, total) => '<div class="sbar">' + STAGES.filter(([k]) => c[k]).map(([k, , col]) => `<i style="width:${(100 * c[k] / total).toFixed(2)}%;background:${col}"></i>`).join('') + '</div>';
+
+function renderSectors() {
+  const el = $('#sectors'); if (!el) return;
+  const total = rows.length;
+  if (!total) { el.innerHTML = '<div class="empty">Aucun restaurant pour l’instant. Ajoutez-en un ou importez une liste CSV.</div>'; return; }
+  const S = sectorStats().sort((a, b) => (b.name === day.focus) - (a.name === day.focus) || (a.pct === 100) - (b.pct === 100) || b.pct - a.pct || natCmp(a.name, b.name));
+  const all = emptyStages(); rows.forEach(r => all[stageOf(r)]++);
+  const done = doneOf(all), pct = Math.round(100 * done / total), per = day.n || 8, days = Math.max(1, Math.ceil(all.todo / per));
+  const unsec = rows.filter(r => !r.sector && r.lat != null).length, nopos = rows.filter(r => r.lat == null).length;
+  const legend = STAGES.map(([k, t, col]) => `<span style="--c:${col}">${t}</span>`).join('');
+  const forecast = all.todo ? `Encore ${all.todo} à visiter, soit environ ${days === 1 ? '1 jour' : days + ' jours'} à ${per} visites par jour.` : 'Plus rien à visiter : bravo !';
+  let html = `<section class="card"><div class="big"><b>${pct} %</b><span>des restaurants sont traités</span></div>${segBar(all, total)}<div class="legend">${legend}</div>
+<div class="sub">${done} sur ${total} · Traité = visité, avec une suite claire (prochaine étape, client ou refus).</div><div class="sub">${forecast}</div>
+<div class="acts2"><button type="button" class="btn primary sm" data-sa="assign">${S.length ? 'Répartir à nouveau' : 'Répartir en secteurs'}</button><button type="button" class="btn sm" data-sa="clean">Nettoyer</button></div></section>`;
+  if (!S.length) html += '<div class="empty">Pas encore de secteurs. Répartissez vos restaurants en zones de 15 à 25 adresses proches les unes des autres, puis terminez-les un par un.</div>';
+  if (S.length && unsec) html += `<div class="warn"><span>${unsec} nouveaux restaurants sans secteur.</span><button type="button" class="btn sm" data-sa="assignNew">Répartir les nouveaux</button></div>`;
+  if (nopos) html += `<div class="warn"><span>${nopos} restaurants n’ont pas de position et restent hors secteur.</span><button type="button" class="btn sm" data-sa="locate">Chercher les positions manquantes (${nopos})</button></div>`;
+  html += S.map(s => {
+    const ds = [...s.dist.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(x => x[0]).join(', '), foc = s.name === day.focus;
+    return `<section class="sec${s.pct === 100 ? ' done' : ''}${foc ? ' focus' : ''}"><div class="hd"><h4>${esc(s.name)}</h4><span class="pct">${s.pct} %</span></div>
+<div class="sub">${s.total} ${s.total === 1 ? 'restaurant' : 'restaurants'}${ds ? ' · ' + esc(ds) : ''}</div>${segBar(s.c, s.total)}
+<div class="tags">${s.pct === 100 ? '<span class="ok">Terminé ✓</span>' : ''}${s.c.todo ? `<span>${s.c.todo} à visiter</span>` : ''}${s.c.unclear ? `<span>${s.c.unclear} sans suite</span>` : ''}${s.due ? `<span class="late">${s.due} à relancer</span>` : ''}</div>
+<div class="acts2"><button type="button" class="btn sm${foc ? '' : ' primary'}" data-focus="${esc(s.name)}">${foc ? 'Arrêter le focus' : 'Focus'}</button><button type="button" class="btn sm" data-list="${esc(s.name)}">Liste</button><button type="button" class="btn sm" data-ren="${esc(s.name)}">Renommer</button></div></section>`;
+  }).join('');
+  el.innerHTML = html;
+}
+$('#sectors').addEventListener('click', async e => {
+  const t = e.target, a = t.closest('button[data-sa]');
+  if (a) {
+    if (a.dataset.sa === 'assign') return doAssign();
+    if (a.dataset.sa === 'assignNew') return void await autoAssignNew(true);
+    if (a.dataset.sa === 'clean') return openClean();
+    if (a.dataset.sa === 'locate') return locateMissing(a);
+  }
+  const f = t.closest('button[data-focus]');
+  if (f) { const n = f.dataset.focus; day.focus = day.focus === n ? '' : n; saveDay(); return day.focus ? showTab('today') : renderSectors(); }
+  const l = t.closest('button[data-list]');
+  if (l) { $('#fSector').value = l.dataset.list; $('#fStatus').value = ''; $('#fDistrict').value = ''; $('#q').value = ''; showTab('list'); return renderList(); }
+  const rn = t.closest('button[data-ren]');
+  if (rn) {
+    const old = rn.dataset.ren, nn = (prompt(tt('Nouveau nom du secteur', 'Nieuwe naam van de sector'), old) || '').trim();
+    if (!nn || nn === old) return;
+    try { await store.setSector(rows.filter(r => r.sector === old).map(r => r.id), nn, true); if (day.focus === old) { day.focus = nn; saveDay(); } await reload(); toast('Secteur renommé.'); }
+    catch (err) { toast(sqlHint(err), 7000); }
+  }
+});
+
+// ----- Nettoyage : doublons, positions manquantes, restaurants fermés -----
+const infoScore = r => (r.status !== 'new' ? 10 : 0) + (r.last_visit_at ? 5 : 0) + (r.next_step ? 2 : 0) + (r.next_contact ? 2 : 0) + (r.lat != null ? 2 : 0) + (r.phone ? 1 : 0) + (r.address ? 1 : 0) + (r.g_reviews != null ? 1 : 0) + (r.website_status && r.website_status !== 'unknown' ? 1 : 0) + (r.sector ? 1 : 0);
+const pickKeeper = g => g.slice().sort((a, b) => infoScore(b) - infoScore(a) || String(a.created_at || '').localeCompare(String(b.created_at || '')))[0];
+function findDupes() {
+  const L = rows, par = L.map((_, i) => i), f = i => par[i] === i ? i : (par[i] = f(par[i])), un = (a, b) => { par[f(a)] = f(b); };
+  const byName = new Map();
+  L.forEach((r, i) => { const k = norm(r.name); if (k) (byName.get(k) || byName.set(k, []).get(k)).push(i); });
+  byName.forEach(ix => { for (let a = 0; a < ix.length; a++) for (let b = a + 1; b < ix.length; b++) { const A = L[ix[a]], B = L[ix[b]]; if (A.lat == null || B.lat == null || haversine(A, B) < 300) un(ix[a], ix[b]); } });
+  for (let a = 0; a < L.length; a++) {
+    const A = L[a], ka = norm(A.name); if (A.lat == null || ka.length < 4) continue;
+    for (let b = a + 1; b < L.length; b++) {
+      const B = L[b]; if (B.lat == null || Math.abs(A.lat - B.lat) > 0.0005 || haversine(A, B) >= 40) continue;
+      const kb = norm(B.name); if (kb.length >= 4 && (ka.includes(kb) || kb.includes(ka))) un(a, b);
+    }
+  }
+  const g = new Map(); L.forEach((r, i) => (g.get(f(i)) || g.set(f(i), []).get(f(i))).push(r));
+  return [...g.values()].filter(x => x.length > 1).sort((a, b) => norm(a[0].name).localeCompare(norm(b[0].name)));
+}
+async function mergeCluster(g) {
+  const keep = pickKeeper(g), others = g.filter(x => x !== keep), patch = {};
+  const FILL = ['district', 'address', 'phone', 'lat', 'lng', 'kind', 'g_rating', 'g_reviews', 'area', 'next_step', 'next_contact', 'sector'];
+  for (const o of others) {
+    for (const k of FILL) if ((keep[k] == null || keep[k] === '') && patch[k] == null && o[k] != null && o[k] !== '') patch[k] = o[k];
+    if (String(patch.last_visit_at ?? keep.last_visit_at ?? '') < String(o.last_visit_at ?? '')) patch.last_visit_at = o.last_visit_at;
+    if (keep.status === 'new' && (patch.status || 'new') === 'new' && o.status !== 'new') patch.status = o.status;
+    if ((!keep.website_status || keep.website_status === 'unknown') && !patch.website_status && o.website_status && o.website_status !== 'unknown') patch.website_status = o.website_status;
+  }
+  if (Object.keys(patch).length) await store.save({ id: keep.id, name: keep.name, ...patch });
+  await store.moveVisits(others.map(o => o.id), keep.id);
+  for (const o of others) { selected.delete(o.id); await store.remove(o.id); }
+  saveSel(); route = null;
+  return others.length;
+}
+let dupCache = [];
+function renderClean() {
+  const el = $('#cleanBody'); if (!el) return;
+  dupCache = findDupes();
+  const nopos = rows.filter(r => r.lat == null).length, N = dupCache.length;
+  const dup = N ? `<div class="sub">${N === 1 ? '1 groupe de doublons trouvé.' : N + ' groupes de doublons trouvés.'}</div><div class="sub">Le plus complet est gardé, les autres sont fusionnés dedans (visites comprises).</div>
+<div class="sres">${dupCache.slice(0, 40).map((g, i) => { const k = pickKeeper(g), o = g.filter(x => x !== k); return `<div class="sr"><div><b>${esc(k.name)}</b><div class="meta"><span>${esc(STATUS[k.status]?.label)}</span>${k.district ? ' · ' + esc(k.district) : ''}</div><div class="meta">← ${o.map(x => esc(x.name)).join(' · ')}</div></div><button type="button" class="btn" data-m="${i}">Fusionner</button></div>`; }).join('')}</div>${N > 40 ? `<div class="sub">… et ${N - 40} autres</div>` : ''}<div><button type="button" class="btn primary" id="cleanAll">Tout fusionner</button></div>` : '<div class="sub">Aucun doublon trouvé.</div>';
+  const pos = nopos ? `<div class="sub">${nopos} restaurants n’ont pas de position : ils n’entrent dans aucun secteur ni itinéraire.</div><div><button type="button" class="btn" id="cleanLocate">Chercher les positions manquantes (${nopos})</button></div>` : '<div class="sub">Tous les restaurants ont une position.</div>';
+  const cl = closedRows.length ? `<div class="sres">${closedRows.slice(0, 40).map(r => `<div class="sr"><div><b>${esc(r.name)}</b><div class="meta">${esc(r.district || '')}</div></div><button type="button" class="btn" data-reopen="${esc(r.id)}">Rouvrir</button></div>`).join('')}</div>` : '<div class="sub">Aucun restaurant fermé.</div>';
+  el.innerHTML = `<h3>Doublons</h3>${dup}<h3>Sans position</h3>${pos}<h3>Fermés</h3><div class="sub">Marquez un restaurant fermé dans sa fiche (···) ou pendant une visite. Il ne compte plus nulle part, mais il ne sera pas rajouté par la recherche en ligne.</div>${cl}`;
+}
+function openClean() { renderClean(); $('#dlgClean').showModal(); }
+$('#btnCleanClose').onclick = () => $('#dlgClean').close();
+$('#cleanBody').addEventListener('click', async e => {
+  const t = e.target, one = t.closest('button[data-m]'), all = t.closest('#cleanAll'), loc = t.closest('#cleanLocate'), re = t.closest('button[data-reopen]');
+  try {
+    if (one || all) {
+      const groups = one ? [dupCache[+one.dataset.m]] : dupCache.slice();
+      if (all && !confirm(tt(`Fusionner ${groups.length} groupes de doublons ?`, `${groups.length} groepen dubbelen samenvoegen?`))) return;
+      t.closest('button').disabled = true; let n = 0;
+      for (const g of groups) if (g) n += await mergeCluster(g);
+      await reload(); renderClean(); toast(`${n} doublons fusionnés.`, 4000);
+    } else if (loc) { await locateMissing(loc); renderClean(); }
+    else if (re) { const r = closedRows.find(x => x.id === re.dataset.reopen); if (r) { await store.save({ id: r.id, name: r.name, closed: false }); await reload(); renderClean(); toast('Enregistré.'); } }
+  } catch (err) { toast(sqlHint(err), 7000); }
+});
 
 // ====== Chiffres ======
 store.allVisits = async () => sb ? ((await sb.from('visits').select('*').order('created_at', { ascending: false }).limit(2000)).data || []) : ls('at_visits', '[]');
@@ -1174,6 +1473,41 @@ new MutationObserver(ms => ms.forEach(m => {
 })).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTR });
 Object.assign(D, {'Point de départ':'Startpunt','Adresse ou quartier':'Adres of wijk','Chercher':'Zoeken','Région':'Regio','Peu importe, le plus proche du départ':'Maakt niet uit, dichtst bij mijn start','Nombre d’arrêts':'Aantal stops','Déplacement':'Verplaatsing','À pied':'Te voet','En voiture':'Met de auto','Seulement nouveaux et fort potentiel':'Alleen nieuwe en hoge potentie','Inclure les relances':'Opvolgingen meenemen','Déplacer sur la carte':'Verplaats op de kaart','Ouvrir dans Google Maps':'Openen in Google Maps','Départ : repère sur la carte (Agdal par défaut)':'Start: pin op de kaart (standaard Agdal)'});
 FRAG.push([/^Départ : (?=.)/,'Start: '],[/^Chercher les positions manquantes \((\d+)\)/,'Ontbrekende posities opzoeken ($1)'],[/(\d+) arrêts · /,'$1 stops · '],[/(\d+) positions trouvées, (\d+) introuvables\./,'$1 posities gevonden, $2 niet gevonden.'],[/Plus de restaurants ne correspondent pas aux filtres/,'Er zijn geen restaurants meer die aan de filters voldoen'],[/ \(certains n’ont pas encore de position\)/,' (sommige hebben nog geen positie)'],[/Essayez une autre région ou désactivez « nouveaux et fort potentiel »\./,'Probeer een andere regio of zet “alleen nieuwe en hoge potentie” uit.'],[/Aucun restaurant ne correspond\. Essayez une autre région, désactivez « nouveaux et fort potentiel »/,'Geen enkel restaurant past. Probeer een andere regio, zet “alleen nieuwe en hoge potentie” uit'],[/ ou cherchez les positions manquantes\./,' of zoek de ontbrekende posities op.'],[/Déplacez le repère D sur la carte, puis revenez sur Aujourd’hui\./,'Sleep de pin D op de kaart en ga dan terug naar Vandaag.']);
+Object.assign(D, {
+'Secteurs':'Sectoren','Secteur':'Sector','Tous secteurs':'Alle sectoren','Secteur en focus':'Sector in focus','Pas de focus, meilleurs scores':'Geen focus, beste scores',
+'des restaurants sont traités':'van de restaurants is afgewerkt',
+'En discussion':'In gesprek','Suivi prévu':'Vervolg gepland','Sans suite définie':'Geen vervolg afgesproken',
+'Répartir à nouveau':'Opnieuw indelen','Répartir en secteurs':'In sectoren indelen','Répartir les nouveaux':'Nieuwe indelen','Nettoyer':'Opschonen',
+'Plus rien à visiter : bravo !':'Niets meer te bezoeken: goed gedaan!',
+'Pas encore de secteurs. Répartissez vos restaurants en zones de 15 à 25 adresses proches les unes des autres, puis terminez-les un par un.':'Nog geen sectoren. Deel je restaurants in zones van 15 tot 25 adressen dicht bij elkaar in en werk ze één voor één af.',
+'Terminé ✓':'Afgewerkt ✓','Focus':'Focus','Arrêter le focus':'Focus stoppen','Liste':'Lijst','Renommer':'Hernoemen',
+'Doublons':'Dubbelen','Sans position':'Zonder positie','Fermés':'Gesloten','Fermé':'Gesloten','Fermer':'Sluiten',
+'Fermé ou n’existe plus':'Gesloten of bestaat niet meer',
+'Le plus complet est gardé, les autres sont fusionnés dedans (visites comprises).':'De meest complete blijft staan, de rest wordt erin samengevoegd (bezoeken inbegrepen).',
+'Aucun doublon trouvé.':'Geen dubbelen gevonden.','Tous les restaurants ont une position.':'Alle restaurants hebben een locatie.',
+'Aucun restaurant fermé.':'Geen gesloten restaurants.','Rouvrir':'Heropenen','Fusionner':'Samenvoegen','Tout fusionner':'Alles samenvoegen',
+'Marquez un restaurant fermé dans sa fiche (···) ou pendant une visite. Il ne compte plus nulle part, mais il ne sera pas rajouté par la recherche en ligne.':'Markeer een gesloten restaurant in zijn kaart (···) of tijdens een bezoek. Het telt nergens meer mee, maar wordt niet opnieuw toegevoegd door online zoeken.',
+'Ce secteur est terminé : tout est visité avec une suite claire. Choisissez le secteur suivant.':'Deze sector is klaar: alles is bezocht met een duidelijk vervolg. Kies de volgende sector.',
+'Répartition…':'Indelen…','Secteur renommé.':'Sector hernoemd.','Marqué comme fermé.':'Als gesloten gemarkeerd.',
+'Rien à répartir : aucun restaurant n’a de position.':'Niets in te delen: geen enkel restaurant heeft een locatie.',
+'Déjà visité : obtenez une suite claire (prochaine étape ou refus).':'Al bezocht: spreek een duidelijk vervolg af (volgende stap of afwijzing).'
+});
+FRAG.unshift(
+[/^(\d+) sur (\d+) · Traité = visité, avec une suite claire \(prochaine étape, client ou refus\)\./,'$1 van de $2 · Afgewerkt = bezocht met een duidelijk vervolg (volgende stap, klant of afwijzing).'],
+[/Encore (\d+) à visiter, soit environ 1 jour à (\d+) visites par jour\./,'Nog $1 te bezoeken, ongeveer 1 dag bij $2 bezoeken per dag.'],
+[/Encore (\d+) à visiter, soit environ (\d+) jours à (\d+) visites par jour\./,'Nog $1 te bezoeken, ongeveer $2 dagen bij $3 bezoeken per dag.'],
+[/^(\d+) à visiter$/,'$1 te bezoeken'],[/^(\d+) sans suite$/,'$1 zonder vervolg'],
+[/^(\d+) nouveaux restaurants sans secteur\./,'$1 nieuwe restaurants zonder sector.'],
+[/^(\d+) restaurants n’ont pas de position et restent hors secteur\./,'$1 restaurants hebben geen locatie en vallen buiten de sectoren.'],
+[/^(\d+) restaurants n’ont pas de position : ils n’entrent dans aucun secteur ni itinéraire\./,'$1 restaurants hebben geen locatie: ze zitten in geen enkele sector of ronde.'],
+[/^1 groupe de doublons trouvé\./,'1 groep dubbelen gevonden.'],[/^(\d+) groupes de doublons trouvés\./,'$1 groepen dubbelen gevonden.'],
+[/^… et (\d+) autres/,'… en $1 andere'],
+[/^(\d+) restaurants répartis en (\d+) secteurs\./,'$1 restaurants ingedeeld in $2 sectoren.'],
+[/^(\d+) nouveaux restaurants répartis\./,'$1 nieuwe restaurants ingedeeld.'],
+[/^(\d+) doublons fusionnés\./,'$1 dubbelen samengevoegd.'],
+[/^(.+) : (\d+)\/(\d+) traités$/,'$1: $2/$3 afgewerkt'],
+[/ · secteur voisin : /,' · buursector: '],[/ · visité, suite à définir/,' · bezocht, vervolg nog te bepalen'],[/ · secteur /,' · sector ']
+);
 setLang(lang);
 showTab('today');
 
