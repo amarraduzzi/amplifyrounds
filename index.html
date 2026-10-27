@@ -517,6 +517,25 @@ const store = {
     if (sb) { const { data, error } = await sb.from('followups').select('*').eq('status', 'open').order('due_date'); if (error) throw error; return data; }
     return ls('at_fu', '[]').filter(x => x.status === 'open');
   },
+  async fuDoneBetween(a, b) {
+    if (sb) { const { data, error } = await sb.from('followups').select('id').eq('status', 'done').gte('done_at', a).lt('done_at', b); if (error) throw error; return data; }
+    return ls('at_fu', '[]').filter(x => x.status === 'done' && x.done_at >= a && x.done_at < b);
+  },
+  async bilanGet(date, who) {
+    if (sb) { const { data, error } = await sb.from('day_reports').select('*').eq('report_date', date).eq('author', who).maybeSingle(); if (error) throw error; return data; }
+    return ls('at_bil', '[]').find(x => x.report_date === date && x.author === who) || null;
+  },
+  async bilanRecent(who) {
+    if (sb) { const { data, error } = await sb.from('day_reports').select('report_date').eq('author', who).order('report_date', { ascending: false }).limit(10); if (error) throw error; return data.map(x => x.report_date); }
+    return ls('at_bil', '[]').filter(x => x.author === who).map(x => x.report_date).sort().reverse().slice(0, 10);
+  },
+  async bilanSave(r) {
+    r = { ...r, updated_at: new Date().toISOString() };
+    if (sb) { const { error } = await sb.from('day_reports').upsert(r, { onConflict: 'report_date,author' }); if (error) throw error; return; }
+    const a = ls('at_bil', '[]'), i = a.findIndex(x => x.report_date === r.report_date && x.author === r.author);
+    if (i >= 0) a[i] = { ...a[i], ...r }; else a.push(r);
+    localStorage.setItem('at_bil', JSON.stringify(a));
+  },
   async fuSave(f) {
     if (sb) { const { data, error } = await sb.from('followups').upsert(f).select().single(); if (error) throw error; return data; }
     const a = ls('at_fu', '[]'), i = a.findIndex(x => x.id === f.id);
@@ -1108,6 +1127,41 @@ function tipFor(r) {
   if ((r.g_reviews || 0) >= 100) return 'Beaucoup d’avis, donc du passage : parlez marges et caisse (POS dès 199 DH/mois).';
   return 'Premier contact : demandez comment ils suivent leurs marges aujourd’hui.';
 }
+// ---- Bilan de la journée ----
+const BIL_F = [['went_well', 'Qu’est-ce qui s’est bien passé ?'], ['went_bad', 'Qu’est-ce qui s’est mal passé ?'], ['objections', 'Quelles objections ai-je entendues ?'], ['openers', 'Quelles phrases d’accroche ont bien marché ?'], ['learned', 'Qu’ai-je appris ?'], ['tomorrow', 'Que changer demain ?']];
+let bil = { open: false, loaded: false, date: null, f: {}, auto: null, recent: [], err: '' }, whoCache = null;
+async function whoAmI() { if (whoCache) return whoCache; let by = 'moi'; if (sb) { const { data } = await sb.auth.getSession(); by = (data.session?.user?.email || '').split('@')[0] || 'moi'; } return whoCache = by; }
+async function bilAuto(date) { // same source as « Chiffres » : the visits table; one visit = one row
+  const vs = (await store.allVisits()).filter(v => new Date(v.created_at).toLocaleDateString('sv-SE') === date);
+  const a = new Date(date + 'T00:00:00'); let done = 0;
+  try { done = (await store.fuDoneBetween(a.toISOString(), new Date(a.getTime() + 864e5).toISOString())).length; } catch {}
+  return { visits: vs.length, talks: vs.filter(v => ['talked', 'interested', 'appt', 'no'].includes(v.outcome)).length, interested: vs.filter(v => v.outcome === 'interested').length, appts: vs.filter(v => v.outcome === 'appt').length, done, open: fus.length, late: fus.filter(x => x.due_date < todayLocal()).length };
+}
+function bilanSection() {
+  const a = bil.auto, pill = (n, t) => `<span class="pill">${n} ${t}</span>`;
+  return `<details class="card" id="bilan"${bil.open ? ' open' : ''}><summary><b>Bilan de la journée</b></summary>
+<label style="display:block;margin-top:10px"><div class="lbl">Date</div><input type="date" id="bDate" value="${bil.date || todayLocal()}"></label>
+${bil.err ? `<div class="hist">${esc(bil.err)}</div>` : ''}
+${a ? `<div class="lbl" style="margin-top:10px">Chiffres calculés automatiquement</div><div class="strip">${pill(a.visits, 'visites')}${pill(a.talks, 'conversations')}${pill(a.interested, 'intéressés')}${pill(a.appts, 'RDV pris')}${pill(a.done, 'suivis terminés')}${pill(a.open, 'suivis ouverts')}${pill(a.late, 'suivis en retard')}</div>` : ''}
+<div class="lbl" style="margin-top:10px">Notes (à remplir)</div>
+${BIL_F.map(([k, t]) => `<label style="display:block;margin-top:6px"><div class="lbl">${t}</div><textarea data-bf="${k}" rows="2" style="width:100%">${esc(bil.f[k] || '')}</textarea></label>`).join('')}
+<div style="margin-top:8px"><button type="button" class="btn primary" id="bSave">Enregistrer le bilan</button></div>
+${bil.recent.length ? `<div class="lbl" style="margin-top:10px">Bilans précédents</div><div style="display:flex;gap:6px;flex-wrap:wrap">${bil.recent.map(d => `<button type="button" class="btn" data-bd="${d}">${fmtD(d + 'T12:00:00')}</button>`).join('')}</div>` : ''}
+</details>`;
+}
+const bilPaint = () => { const e = $('#bilan'); if (e) e.outerHTML = bilanSection(); };
+async function bilLoad(date) {
+  bil.date = date; bil.loaded = true; bil.err = '';
+  try { const who = await whoAmI(); const [rep, rec, auto] = await Promise.all([store.bilanGet(date, who), store.bilanRecent(who), bilAuto(date)]); bil.f = rep || {}; bil.recent = rec; bil.auto = auto; }
+  catch { bil.err = 'Bilan indisponible : lance schema-update-5.sql dans Supabase.'; bil.f = {}; try { bil.auto = await bilAuto(date); } catch {} }
+  bilPaint();
+}
+async function bilSave() {
+  try {
+    const who = await whoAmI(); await store.bilanSave({ report_date: bil.date || todayLocal(), author: who, ...Object.fromEntries(BIL_F.map(([k]) => [k, (bil.f[k] || '').trim() || null])) });
+    bil.recent = await store.bilanRecent(who); bilPaint(); toast('Bilan enregistré.');
+  } catch (err) { toast('Erreur : ' + err.message, 5000); }
+}
 function fuSection() {
   if (!fus.length) return '';
   const t = todayLocal(), srt = a => a.slice().sort((x, y) => x.due_date.localeCompare(y.due_date));
@@ -1140,6 +1194,7 @@ function renderToday() {
   const nLate = fus.filter(a => a.due_date < todayLocal()).length;
   el.innerHTML = `<div class="strip">${nLate ? `<span class="pill hot">${nLate} suivis en retard</span>` : ''}<span class="pill${nDue ? ' hot' : ''}">${nDue} à relancer</span><span class="pill">${nNew} pas encore visités</span><span class="pill">${nWeek} visites cette semaine</span></div>
 ${fuSection()}
+${bilanSection()}
 <section class="card">
 <div class="find"><input id="dAddr" type="search" aria-label="Adresse ou quartier" placeholder="Adresse ou quartier" value="${esc(day.addr)}"><button class="btn" id="dFind" type="button">Chercher</button></div>
 <div id="dSug" class="sug"></div>
@@ -1170,6 +1225,10 @@ async function locateMissing(b) {
   toast(`${ok} positions trouvées, ${ap} approximatives.`, 6000);
 }
 $('#lLocate').onclick = e => locateMissing(e.currentTarget);
+$('#today').addEventListener('toggle', e => { if (e.target.id !== 'bilan') return; bil.open = e.target.open; if (bil.open && !bil.loaded) bilLoad(bil.date || todayLocal()); }, true);
+$('#today').addEventListener('input', e => { const k = e.target.dataset?.bf; if (k) bil.f[k] = e.target.value; });
+$('#today').addEventListener('change', e => { if (e.target.id === 'bDate' && e.target.value) bilLoad(e.target.value); });
+$('#today').addEventListener('click', e => { const b = e.target.closest('[data-bd]'); if (b) return bilLoad(b.dataset.bd); if (e.target.closest('#bSave')) bilSave(); });
 $('#today').addEventListener('click', async e => {
   const b = e.target.closest('[data-fu2]'); if (!b) return;
   const row = b.closest('[data-id]'), rid = row.dataset.r, a = fus.find(x => x.id === row.dataset.id);
@@ -1280,7 +1339,7 @@ const D = {
 'Lien Google Maps (coordonnées automatiques)':'Google Maps-link (coördinaten automatisch)','Latitude':'Breedtegraad','Longitude':'Lengtegraad',
 'Trouver via l’adresse':'Zoeken via adres','Placer sur la carte':'Op de kaart plaatsen','Supprimer':'Verwijderen','Annuler':'Annuleren','Enregistrer':'Opslaan',
 'Visite':'Bezoek','Compte rendu':'Verslag','Prochaine étape':'Volgende stap','Prochain contact':'Volgend contact','Statut après visite':'Status na bezoek',
-'Suivi WhatsApp':'WhatsApp-opvolging','Suivis':'Opvolging','En retard':'Te laat','À venir':'Binnenkort','Action terminée.':'Actie afgerond.','Actions de suivi':'Opvolgacties','Ajouter une action':'Actie toevoegen','Aucune action ouverte.':'Geen openstaande acties.','Type d’action':'Type actie','Repasser':'Opnieuw langsgaan','Appeler':'Bellen','WhatsApp à envoyer':'WhatsApp sturen','Faire une démo':'Demo geven','Confirmer le RDV':'Afspraak bevestigen','Envoyer des infos':'Info sturen','Note (facultatif)':'Notitie (optioneel)','Heure du RDV (facultatif)':'Tijd van de afspraak (optioneel)','RDV : confirmer ou proposer':'Afspraak bevestigen of voorstellen','Infos et exemples':'Info en voorbeelden sturen','Relancer l’intérêt':'Interesse opvolgen','Numéro fixe ou non reconnu : pas de modèles WhatsApp. Le bouton Suivi WhatsApp reste disponible.':'Vast of onbekend nummer: geen WhatsApp-berichten. De knop WhatsApp-opvolging blijft beschikbaar.','Enregistrer la visite':'Bezoek opslaan','Visites précédentes':'Eerdere bezoeken',
+'Suivi WhatsApp':'WhatsApp-opvolging','Suivis':'Opvolging','Bilan de la journée':'Dagrapport','Date':'Datum','Chiffres calculés automatiquement':'Automatisch berekende cijfers','Notes (à remplir)':'Notities (zelf invullen)','Qu’est-ce qui s’est bien passé ?':'Wat ging goed?','Qu’est-ce qui s’est mal passé ?':'Wat ging slecht?','Quelles objections ai-je entendues ?':'Welke bezwaren hoorde ik?','Quelles phrases d’accroche ont bien marché ?':'Welke openingszinnen werkten goed?','Qu’ai-je appris ?':'Wat heb ik geleerd?','Que changer demain ?':'Wat moet ik morgen anders doen?','Enregistrer le bilan':'Dagrapport opslaan','Bilans précédents':'Eerdere dagrapporten','Bilan enregistré.':'Dagrapport opgeslagen.','En retard':'Te laat','À venir':'Binnenkort','Action terminée.':'Actie afgerond.','Actions de suivi':'Opvolgacties','Ajouter une action':'Actie toevoegen','Aucune action ouverte.':'Geen openstaande acties.','Type d’action':'Type actie','Repasser':'Opnieuw langsgaan','Appeler':'Bellen','WhatsApp à envoyer':'WhatsApp sturen','Faire une démo':'Demo geven','Confirmer le RDV':'Afspraak bevestigen','Envoyer des infos':'Info sturen','Note (facultatif)':'Notitie (optioneel)','Heure du RDV (facultatif)':'Tijd van de afspraak (optioneel)','RDV : confirmer ou proposer':'Afspraak bevestigen of voorstellen','Infos et exemples':'Info en voorbeelden sturen','Relancer l’intérêt':'Interesse opvolgen','Numéro fixe ou non reconnu : pas de modèles WhatsApp. Le bouton Suivi WhatsApp reste disponible.':'Vast of onbekend nummer: geen WhatsApp-berichten. De knop WhatsApp-opvolging blijft beschikbaar.','Enregistrer la visite':'Bezoek opslaan','Visites précédentes':'Eerdere bezoeken',
 'Importer une liste':'Lijst importeren','ou collez le contenu':'of plak de inhoud','Départ':'Start','Tous statuts':'Alle statussen','Tous quartiers':'Alle wijken',
 'À visiter':'Te bezoeken','Rendez-vous':'Afspraak','Démo faite':'Demo gedaan','Pas intéressé':'Niet geïnteresseerd',
 'Ajouter à la tournée':'Aan ronde toevoegen','Retirer de la tournée':'Uit ronde halen','Modifier':'Bewerken',
@@ -1349,7 +1408,7 @@ new MutationObserver(ms => ms.forEach(m => {
 })).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTR });
 Object.assign(D, {'Adresse introuvable. Essayez un quartier ou « Déplacer sur la carte ».':'Adres niet gevonden. Probeer een wijk of « Verplaats op de kaart ».'});
 Object.assign(D, {'Point de départ':'Startpunt','Adresse ou quartier':'Adres of wijk','Chercher':'Zoeken','Région':'Regio','Peu importe, le plus proche du départ':'Maakt niet uit, dichtst bij mijn start','Nombre d’arrêts':'Aantal stops','Déplacement':'Verplaatsing','À pied':'Te voet','En voiture':'Met de auto','Seulement nouveaux et fort potentiel':'Alleen nieuwe en hoge potentie','Inclure les relances':'Opvolgingen meenemen','Déplacer sur la carte':'Verplaats op de kaart','Ouvrir dans Google Maps':'Openen in Google Maps','Départ : repère sur la carte (Agdal par défaut)':'Start: pin op de kaart (standaard Agdal)'});
-FRAG.push([/^(\d+) suivis en retard$/,'$1 acties te laat'],[/position approximative/g,'positie bij benadering'],[/(\d+) positions trouvées, (\d+) approximatives\./,'$1 posities gevonden, $2 bij benadering.'],[/^Départ : (?=.)/,'Start: '],[/^Chercher les positions manquantes \((\d+)\)/,'Ontbrekende posities opzoeken ($1)'],[/(\d+) arrêts · /,'$1 stops · '],[/(\d+) positions trouvées, (\d+) introuvables\./,'$1 posities gevonden, $2 niet gevonden.'],[/Plus de restaurants ne correspondent pas aux filtres/,'Er zijn geen restaurants meer die aan de filters voldoen'],[/ \(certains n’ont pas encore de position\)/,' (sommige hebben nog geen positie)'],[/Essayez une autre région ou désactivez « nouveaux et fort potentiel »\./,'Probeer een andere regio of zet “alleen nieuwe en hoge potentie” uit.'],[/Aucun restaurant ne correspond\. Essayez une autre région, désactivez « nouveaux et fort potentiel »/,'Geen enkel restaurant past. Probeer een andere regio, zet “alleen nieuwe en hoge potentie” uit'],[/ ou cherchez les positions manquantes\./,' of zoek de ontbrekende posities op.'],[/Déplacez le repère D sur la carte, puis revenez sur Aujourd’hui\./,'Sleep de pin D op de kaart en ga dan terug naar Vandaag.']);
+FRAG.push([/^(\d+) suivis en retard$/,'$1 acties te laat'],[/^(\d+) visites$/,'$1 bezoeken'],[/^(\d+) conversations$/,'$1 gesprekken'],[/^(\d+) intéressés$/,'$1 geïnteresseerd'],[/^(\d+) RDV pris$/,'$1 afspraken gemaakt'],[/^(\d+) suivis terminés$/,'$1 acties afgerond'],[/^(\d+) suivis ouverts$/,'$1 openstaande acties'],[/position approximative/g,'positie bij benadering'],[/(\d+) positions trouvées, (\d+) approximatives\./,'$1 posities gevonden, $2 bij benadering.'],[/^Départ : (?=.)/,'Start: '],[/^Chercher les positions manquantes \((\d+)\)/,'Ontbrekende posities opzoeken ($1)'],[/(\d+) arrêts · /,'$1 stops · '],[/(\d+) positions trouvées, (\d+) introuvables\./,'$1 posities gevonden, $2 niet gevonden.'],[/Plus de restaurants ne correspondent pas aux filtres/,'Er zijn geen restaurants meer die aan de filters voldoen'],[/ \(certains n’ont pas encore de position\)/,' (sommige hebben nog geen positie)'],[/Essayez une autre région ou désactivez « nouveaux et fort potentiel »\./,'Probeer een andere regio of zet “alleen nieuwe en hoge potentie” uit.'],[/Aucun restaurant ne correspond\. Essayez une autre région, désactivez « nouveaux et fort potentiel »/,'Geen enkel restaurant past. Probeer een andere regio, zet “alleen nieuwe en hoge potentie” uit'],[/ ou cherchez les positions manquantes\./,' of zoek de ontbrekende posities op.'],[/Déplacez le repère D sur la carte, puis revenez sur Aujourd’hui\./,'Sleep de pin D op de kaart en ga dan terug naar Vandaag.']);
 setLang(lang);
 showTab('today');
 
