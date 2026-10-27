@@ -312,6 +312,7 @@ header h1{font-size:26px}dialog h2{font-size:24px}
 <label>Objection<select name="objection"><option value="">—</option><option value="price">Prix</option><option value="equipped">Déjà équipé</option><option value="time">Pas le temps</option><option value="decider">Pas le décideur</option><option value="other">Autre</option></select></label>
 <label>Compte rendu<textarea name="note" rows="4" placeholder="Ce qui a été dit, ce qui l’intéresse, objections…"></textarea></label>
     <div class="chips" id="dates"><button type="button" data-d="1">Demain</button><button type="button" data-d="3">+3 jours</button><button type="button" data-d="7">+1 semaine</button></div>
+<label>Type d’action<select name="fu_type"><option value="revisit">Repasser</option><option value="call">Appeler</option><option value="wa">WhatsApp à envoyer</option><option value="demo">Faire une démo</option><option value="confirm">Confirmer le RDV</option><option value="info">Envoyer des infos</option></select></label>
 <label>Prochaine étape<input name="next_step" placeholder="Ex. envoyer la démo, repasser jeudi"></label>
     <label>Heure du RDV (facultatif)<input name="next_time" type="time"></label>
     <div class="two">
@@ -319,6 +320,8 @@ header h1{font-size:26px}dialog h2{font-size:24px}
       <label>Statut après visite<select name="status"></select></label>
     </div>
     <div class="hist" id="visitHist"></div>
+    <div id="fuBox" style="margin-top:12px"><b style="color:var(--ink)">Actions de suivi</b><div id="fuList"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><select id="fuType"><option value="revisit">Repasser</option><option value="call">Appeler</option><option value="wa">WhatsApp à envoyer</option><option value="demo">Faire une démo</option><option value="confirm">Confirmer le RDV</option><option value="info">Envoyer des infos</option></select><input id="fuDate" type="date"><input id="fuNote" placeholder="Note (facultatif)" style="flex:1 1 120px"><button type="button" class="btn" id="fuAdd">Ajouter une action</button></div></div>
     <div id="waTpl" hidden><div style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0">
       <button type="button" class="btn" data-wa="appt">RDV : confirmer ou proposer</button>
       <button type="button" class="btn" data-wa="info">Infos et exemples</button>
@@ -505,6 +508,16 @@ const store = {
     if (sb) { const { error } = await sb.from('visits').insert(v); if (error) throw error; return; }
     const a = ls('at_visits', '[]'); a.push({ created_at: new Date().toISOString(), ...v });
     localStorage.setItem('at_visits', JSON.stringify(a));
+  },
+  async fuFor(rid) {
+    if (sb) { const { data, error } = await sb.from('followups').select('*').eq('restaurant_id', rid).order('due_date'); if (error) throw error; return data; }
+    return ls('at_fu', '[]').filter(x => x.restaurant_id === rid);
+  },
+  async fuSave(f) {
+    if (sb) { const { data, error } = await sb.from('followups').upsert(f).select().single(); if (error) throw error; return data; }
+    const a = ls('at_fu', '[]'), i = a.findIndex(x => x.id === f.id);
+    if (i >= 0) a[i] = { ...a[i], ...f }; else a.push({ created_at: new Date().toISOString(), ...f });
+    localStorage.setItem('at_fu', JSON.stringify(a)); return f;
   },
   async visitsFor(id) {
     if (sb) { const { data } = await sb.from('visits').select('*').eq('restaurant_id', id).order('created_at', { ascending: false }).limit(15); return data || []; }
@@ -708,6 +721,7 @@ window.openVisit = async id => {
   { const ok = !!r.phone && isMobileMA(r.phone); $('#waTpl').hidden = !ok; $('#waNote').hidden = !r.phone || ok; }
   $('#visitHist').innerHTML = '';
   $('#dlgVisit').showModal();
+  $('#fuList').innerHTML = ''; renderFu(id);
   const vs = await store.visitsFor(id);
   const OUTL = { absent: 'Pas là', talked: 'Parlé au gérant', interested: 'Intéressé', appt: 'RDV pris', no: 'Pas intéressé' };
   $('#visitHist').innerHTML = vs.length ? '<b style="color:var(--ink)">Visites précédentes</b>' + vs.map(v => {
@@ -715,6 +729,49 @@ window.openVisit = async id => {
     return `<div>${fmtD(v.created_at)} — ${esc(head)}${head && v.note ? ' — ' : ''}${esc(v.note || (head ? '' : '(sans note)'))}</div>`;
   }).join('') : '';
 };
+// ---- Actions de suivi (liées à « Prochain contact » / « Prochaine étape ») ----
+const FU_TYPES = { revisit: 'Repasser', call: 'Appeler', wa: 'WhatsApp à envoyer', demo: 'Faire une démo', confirm: 'Confirmer le RDV', info: 'Envoyer des infos' };
+const todayLocal = () => new Date().toLocaleDateString('sv-SE');
+async function syncLinked(rid, date, note, type) { // one open action per restaurant follows the visit form; edits update it instead of duplicating
+  const cur = (await store.fuFor(rid)).find(x => x.status === 'open' && x.source === 'visit'), now = new Date().toISOString();
+  if (date) {
+    if (!cur) return void await store.fuSave({ id: uid(), restaurant_id: rid, type, due_date: date, note, status: 'open', source: 'visit', history: [] });
+    if (cur.due_date !== date || (cur.note || null) !== note || cur.type !== type) await store.fuSave({ ...cur, type, note, due_date: date, history: cur.due_date !== date ? [...(cur.history || []), { due: cur.due_date, at: now }] : (cur.history || []) });
+  } else if (cur) await store.fuSave({ ...cur, status: 'cancelled', done_at: now });
+}
+async function syncRestaurant(rid) { // keep the existing fields (used by the old lists) equal to the earliest open action
+  const r = rows.find(x => x.id === rid); if (!r) return;
+  const o = (await store.fuFor(rid)).filter(x => x.status === 'open').sort((a, b) => a.due_date.localeCompare(b.due_date))[0];
+  await store.save({ id: rid, name: r.name, next_contact: o ? o.due_date : null, next_step: o ? (o.note || FU_TYPES[o.type] || null) : null });
+}
+async function renderFu(rid) {
+  const box = $('#fuList'); let list;
+  try { list = await store.fuFor(rid); } catch { box.innerHTML = '<div class="hist">Actions indisponibles : lance schema-update-4.sql dans Supabase.</div>'; return; }
+  const today = todayLocal(), open = list.filter(x => x.status === 'open').sort((a, b) => a.due_date.localeCompare(b.due_date)), closed = list.length - open.length;
+  box.innerHTML = (open.length ? open.map(a => `<div data-id="${a.id}" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 0;border-top:1px solid #0001"><b style="flex:1 1 140px">${esc(FU_TYPES[a.type] || a.type)}${a.note ? ' — ' + esc(a.note) : ''}</b><input type="date" data-fu="date" value="${a.due_date}" style="${a.due_date < today ? 'color:#C0392B;font-weight:600' : ''}"><button type="button" class="btn" data-fu="done">✓</button><button type="button" class="btn" data-fu="cancel">Annuler</button></div>`).join('') : '<div class="hist">Aucune action ouverte.</div>') + (closed ? `<div class="hist">${closed} terminée(s) ou annulée(s)</div>` : '');
+}
+async function fuChange(rid) {
+  try { await syncRestaurant(rid); await reload(); } catch (err) { toast('Erreur : ' + err.message, 5000); }
+  const r = rows.find(x => x.id === rid), f = $('#fVisit'); if (r) { f.next_contact.value = r.next_contact || ''; f.next_step.value = r.next_step || ''; }
+  renderFu(rid);
+}
+$('#fuBox').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); if (e.target.id === 'fuNote') $('#fuAdd').click(); } });
+$('#fuBox').addEventListener('click', async e => {
+  const rid = visitId; if (!rid) return;
+  if (e.target.closest('#fuAdd')) {
+    const d = $('#fuDate').value; if (!d) return toast('Choisis une date.');
+    try { await store.fuSave({ id: uid(), restaurant_id: rid, type: $('#fuType').value, due_date: d, note: $('#fuNote').value.trim() || null, status: 'open', source: 'manual', history: [] }); } catch (err) { return toast('Erreur : ' + err.message, 5000); }
+    $('#fuDate').value = ''; $('#fuNote').value = ''; return fuChange(rid);
+  }
+  const b = e.target.closest('button[data-fu]'), row = e.target.closest('[data-id]'); if (!b || !row) return;
+  try { const a = (await store.fuFor(rid)).find(x => x.id === row.dataset.id); if (!a) return; await store.fuSave({ ...a, status: b.dataset.fu === 'done' ? 'done' : 'cancelled', done_at: new Date().toISOString() }); } catch (err) { return toast('Erreur : ' + err.message, 5000); }
+  fuChange(rid);
+});
+$('#fuBox').addEventListener('change', async e => {
+  const i = e.target.closest('input[data-fu="date"]'), row = e.target.closest('[data-id]'), rid = visitId; if (!i || !row || !i.value) return;
+  try { const a = (await store.fuFor(rid)).find(x => x.id === row.dataset.id); if (!a || a.due_date === i.value) return; await store.fuSave({ ...a, due_date: i.value, history: [...(a.history || []), { due: a.due_date, at: new Date().toISOString() }] }); } catch (err) { return toast('Erreur : ' + err.message, 5000); }
+  fuChange(rid);
+});
 $('#btnVisitCancel').onclick = () => $('#dlgVisit').close();
 $('#waTpl').addEventListener('click', e => {
   const b = e.target.closest('[data-wa]'); const r = rows.find(x => x.id === visitId); if (!b || !r || !isMobileMA(r.phone)) return;
@@ -735,6 +792,7 @@ await store.addVisit({ id: uid(), restaurant_id: r.id, note: f.note.value.trim()
     const tm = f.next_contact.value && f.next_time.value ? f.next_time.value : null;
     try { await store.save({ ...pt, next_time: tm }); }
     catch (err) { if (!/next_time/.test(err.message || '')) throw err; await store.save(pt); toast('Visite enregistrée, mais l’heure n’est pas sauvegardée : lance schema-update-3.sql dans Supabase.', 7000); await reload(); return; }
+    try { await syncLinked(r.id, f.next_contact.value || null, f.next_step.value.trim() || null, f.fu_type.value); } catch (err) { toast('Visite enregistrée, mais l’action de suivi n’est pas créée : lance schema-update-4.sql dans Supabase.', 7000); await reload(); return; }
     await reload(); toast('Visite enregistrée.');
   } catch (err) { toast('Erreur : ' + err.message, 5000); }
 });
@@ -1198,7 +1256,7 @@ const D = {
 'Lien Google Maps (coordonnées automatiques)':'Google Maps-link (coördinaten automatisch)','Latitude':'Breedtegraad','Longitude':'Lengtegraad',
 'Trouver via l’adresse':'Zoeken via adres','Placer sur la carte':'Op de kaart plaatsen','Supprimer':'Verwijderen','Annuler':'Annuleren','Enregistrer':'Opslaan',
 'Visite':'Bezoek','Compte rendu':'Verslag','Prochaine étape':'Volgende stap','Prochain contact':'Volgend contact','Statut après visite':'Status na bezoek',
-'Suivi WhatsApp':'WhatsApp-opvolging','Heure du RDV (facultatif)':'Tijd van de afspraak (optioneel)','RDV : confirmer ou proposer':'Afspraak bevestigen of voorstellen','Infos et exemples':'Info en voorbeelden sturen','Relancer l’intérêt':'Interesse opvolgen','Numéro fixe ou non reconnu : pas de modèles WhatsApp. Le bouton Suivi WhatsApp reste disponible.':'Vast of onbekend nummer: geen WhatsApp-berichten. De knop WhatsApp-opvolging blijft beschikbaar.','Enregistrer la visite':'Bezoek opslaan','Visites précédentes':'Eerdere bezoeken',
+'Suivi WhatsApp':'WhatsApp-opvolging','Actions de suivi':'Opvolgacties','Ajouter une action':'Actie toevoegen','Aucune action ouverte.':'Geen openstaande acties.','Type d’action':'Type actie','Repasser':'Opnieuw langsgaan','Appeler':'Bellen','WhatsApp à envoyer':'WhatsApp sturen','Faire une démo':'Demo geven','Confirmer le RDV':'Afspraak bevestigen','Envoyer des infos':'Info sturen','Note (facultatif)':'Notitie (optioneel)','Heure du RDV (facultatif)':'Tijd van de afspraak (optioneel)','RDV : confirmer ou proposer':'Afspraak bevestigen of voorstellen','Infos et exemples':'Info en voorbeelden sturen','Relancer l’intérêt':'Interesse opvolgen','Numéro fixe ou non reconnu : pas de modèles WhatsApp. Le bouton Suivi WhatsApp reste disponible.':'Vast of onbekend nummer: geen WhatsApp-berichten. De knop WhatsApp-opvolging blijft beschikbaar.','Enregistrer la visite':'Bezoek opslaan','Visites précédentes':'Eerdere bezoeken',
 'Importer une liste':'Lijst importeren','ou collez le contenu':'of plak de inhoud','Départ':'Start','Tous statuts':'Alle statussen','Tous quartiers':'Alle wijken',
 'À visiter':'Te bezoeken','Rendez-vous':'Afspraak','Démo faite':'Demo gedaan','Pas intéressé':'Niet geïnteresseerd',
 'Ajouter à la tournée':'Aan ronde toevoegen','Retirer de la tournée':'Uit ronde halen','Modifier':'Bewerken',
