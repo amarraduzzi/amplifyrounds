@@ -513,6 +513,10 @@ const store = {
     if (sb) { const { data, error } = await sb.from('followups').select('*').eq('restaurant_id', rid).order('due_date'); if (error) throw error; return data; }
     return ls('at_fu', '[]').filter(x => x.restaurant_id === rid);
   },
+  async fuOpen() {
+    if (sb) { const { data, error } = await sb.from('followups').select('*').eq('status', 'open').order('due_date'); if (error) throw error; return data; }
+    return ls('at_fu', '[]').filter(x => x.status === 'open');
+  },
   async fuSave(f) {
     if (sb) { const { data, error } = await sb.from('followups').upsert(f).select().single(); if (error) throw error; return data; }
     const a = ls('at_fu', '[]'), i = a.findIndex(x => x.id === f.id);
@@ -526,7 +530,7 @@ const store = {
 };
 
 // ====== State ======
-let rows = [];
+let rows = [], fus = [];
 let selected = new Set(JSON.parse(localStorage.getItem('at_sel') || '[]'));
 let start = JSON.parse(localStorage.getItem('at_start') || 'null') || { ...DEFAULT_START };
 let route = null;              // { order:[rows], geometry:[[lat,lng]], distance, duration, estimated }
@@ -952,6 +956,7 @@ $('#tabToday').onclick = () => showTab('today'); $('#tabList').onclick = () => s
 // ====== Boot ======
 async function reload() {
   rows = await store.list();
+  try { fus = await store.fuOpen(); } catch { fus = []; }
   selected = new Set([...selected].filter(id => rows.some(r => r.id === id)));
   renderAll();
   if (rows.some(r => r.lat != null) && !reload.done) { map.fitBounds(L.latLngBounds(rows.filter(r => r.lat != null).map(r => [r.lat, r.lng])).pad(.2)); reload.done = true; }
@@ -1103,6 +1108,16 @@ function tipFor(r) {
   if ((r.g_reviews || 0) >= 100) return 'Beaucoup d’avis, donc du passage : parlez marges et caisse (POS dès 199 DH/mois).';
   return 'Premier contact : demandez comment ils suivent leurs marges aujourd’hui.';
 }
+function fuSection() {
+  if (!fus.length) return '';
+  const t = todayLocal(), srt = a => a.slice().sort((x, y) => x.due_date.localeCompare(y.due_date));
+  const item = a => {
+    const r = rows.find(x => x.id === a.restaurant_id); if (!r) return '';
+    return `<div data-id="${a.id}" data-r="${r.id}" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid #0001"><div style="flex:1 1 180px"><b>${esc(r.name)}</b><div class="leg ${a.due_date < t ? 'late' : ''}">${esc(FU_TYPES[a.type] || a.type)} · ${fmtD(a.due_date)}${a.note ? ' · ' + esc(a.note) : ''}</div></div><button class="btn" data-fu2="visit" type="button">Visite</button>${r.phone && isMobileMA(r.phone) ? '<button class="btn" data-fu2="wa" type="button">WhatsApp</button>' : ''}<button class="btn" data-fu2="done" type="button" aria-label="Terminer">✓</button></div>`;
+  };
+  const grp = (title, arr, st) => arr.length ? `<div class="lbl" style="margin-top:8px;${st}">${title} (${arr.length})</div>` + srt(arr).slice(0, 8).map(item).join('') + (arr.length > 8 ? `<div class="leg">+${arr.length - 8}</div>` : '') : '';
+  return `<section class="card"><b style="color:var(--ink)">Suivis</b>${grp('En retard', fus.filter(a => a.due_date < t), 'color:#C0392B;font-weight:700')}${grp('Aujourd’hui', fus.filter(a => a.due_date === t), '')}${grp('À venir', fus.filter(a => a.due_date > t), 'color:var(--mute)')}</section>`;
+}
 function renderToday() {
   const el = $('#today'); if (!el || geoBusy) return;
   const today = new Date().toISOString().slice(0, 10), now = Date.now();
@@ -1122,7 +1137,9 @@ function renderToday() {
     return `<li class="stop${due ? ' fu' : ''}${late ? ' late' : ''}"><span class="num">${i + 1}</span><div><b>${esc(r.name)}</b><div class="leg ${late ? 'late' : ''}">${esc(r.district || '')}${r.district ? ' · ' : ''}${why}</div><div class="tip">${tipFor(r)}</div><div class="acts"><button class="btn sm" onclick="wazeTo('${r.id}')">Waze</button><button class="btn sm go" onclick="openVisit('${r.id}')">Visite</button></div></div></li>`;
   }).join('')}</ol>${P.items.length < day.n ? `<div class="empty">Plus de restaurants ne correspondent pas aux filtres${missing ? ' (certains n’ont pas encore de position)' : ''}. Essayez une autre région ou désactivez « nouveaux et fort potentiel ».</div>` : ''}`
   : `<div class="empty">${rows.length ? 'Aucun restaurant ne correspond. Essayez une autre région, désactivez « nouveaux et fort potentiel »' + (missing ? ' ou cherchez les positions manquantes.' : '.') : 'Ajoutez des restaurants avec une position (liste, import ou recherche en ligne) pour recevoir un conseil.'}</div>`;
-  el.innerHTML = `<div class="strip"><span class="pill${nDue ? ' hot' : ''}">${nDue} à relancer</span><span class="pill">${nNew} pas encore visités</span><span class="pill">${nWeek} visites cette semaine</span></div>
+  const nLate = fus.filter(a => a.due_date < todayLocal()).length;
+  el.innerHTML = `<div class="strip">${nLate ? `<span class="pill hot">${nLate} suivis en retard</span>` : ''}<span class="pill${nDue ? ' hot' : ''}">${nDue} à relancer</span><span class="pill">${nNew} pas encore visités</span><span class="pill">${nWeek} visites cette semaine</span></div>
+${fuSection()}
 <section class="card">
 <div class="find"><input id="dAddr" type="search" aria-label="Adresse ou quartier" placeholder="Adresse ou quartier" value="${esc(day.addr)}"><button class="btn" id="dFind" type="button">Chercher</button></div>
 <div id="dSug" class="sug"></div>
@@ -1153,6 +1170,13 @@ async function locateMissing(b) {
   toast(`${ok} positions trouvées, ${ap} approximatives.`, 6000);
 }
 $('#lLocate').onclick = e => locateMissing(e.currentTarget);
+$('#today').addEventListener('click', async e => {
+  const b = e.target.closest('[data-fu2]'); if (!b) return;
+  const row = b.closest('[data-id]'), rid = row.dataset.r, a = fus.find(x => x.id === row.dataset.id);
+  if (b.dataset.fu2 === 'visit') return openVisit(rid);
+  if (b.dataset.fu2 === 'wa') { const r = rows.find(x => x.id === rid); if (r && isMobileMA(r.phone)) window.open('https://wa.me/' + waNumber(r.phone) + '?text=' + encodeURIComponent(WA_INTRO), '_blank'); return; }
+  if (b.dataset.fu2 === 'done' && a) { try { await store.fuSave({ ...a, status: 'done', done_at: new Date().toISOString() }); await syncRestaurant(rid); await reload(); toast('Action terminée.'); } catch (err) { toast('Erreur : ' + err.message, 5000); } }
+});
 $('#today').addEventListener('click', async e => {
   const t = e.target;
   const n = t.closest('button[data-n]'); if (n) { day.n = +n.dataset.n; saveDay(); return renderToday(); }
@@ -1256,7 +1280,7 @@ const D = {
 'Lien Google Maps (coordonnées automatiques)':'Google Maps-link (coördinaten automatisch)','Latitude':'Breedtegraad','Longitude':'Lengtegraad',
 'Trouver via l’adresse':'Zoeken via adres','Placer sur la carte':'Op de kaart plaatsen','Supprimer':'Verwijderen','Annuler':'Annuleren','Enregistrer':'Opslaan',
 'Visite':'Bezoek','Compte rendu':'Verslag','Prochaine étape':'Volgende stap','Prochain contact':'Volgend contact','Statut après visite':'Status na bezoek',
-'Suivi WhatsApp':'WhatsApp-opvolging','Actions de suivi':'Opvolgacties','Ajouter une action':'Actie toevoegen','Aucune action ouverte.':'Geen openstaande acties.','Type d’action':'Type actie','Repasser':'Opnieuw langsgaan','Appeler':'Bellen','WhatsApp à envoyer':'WhatsApp sturen','Faire une démo':'Demo geven','Confirmer le RDV':'Afspraak bevestigen','Envoyer des infos':'Info sturen','Note (facultatif)':'Notitie (optioneel)','Heure du RDV (facultatif)':'Tijd van de afspraak (optioneel)','RDV : confirmer ou proposer':'Afspraak bevestigen of voorstellen','Infos et exemples':'Info en voorbeelden sturen','Relancer l’intérêt':'Interesse opvolgen','Numéro fixe ou non reconnu : pas de modèles WhatsApp. Le bouton Suivi WhatsApp reste disponible.':'Vast of onbekend nummer: geen WhatsApp-berichten. De knop WhatsApp-opvolging blijft beschikbaar.','Enregistrer la visite':'Bezoek opslaan','Visites précédentes':'Eerdere bezoeken',
+'Suivi WhatsApp':'WhatsApp-opvolging','Suivis':'Opvolging','En retard':'Te laat','À venir':'Binnenkort','Action terminée.':'Actie afgerond.','Actions de suivi':'Opvolgacties','Ajouter une action':'Actie toevoegen','Aucune action ouverte.':'Geen openstaande acties.','Type d’action':'Type actie','Repasser':'Opnieuw langsgaan','Appeler':'Bellen','WhatsApp à envoyer':'WhatsApp sturen','Faire une démo':'Demo geven','Confirmer le RDV':'Afspraak bevestigen','Envoyer des infos':'Info sturen','Note (facultatif)':'Notitie (optioneel)','Heure du RDV (facultatif)':'Tijd van de afspraak (optioneel)','RDV : confirmer ou proposer':'Afspraak bevestigen of voorstellen','Infos et exemples':'Info en voorbeelden sturen','Relancer l’intérêt':'Interesse opvolgen','Numéro fixe ou non reconnu : pas de modèles WhatsApp. Le bouton Suivi WhatsApp reste disponible.':'Vast of onbekend nummer: geen WhatsApp-berichten. De knop WhatsApp-opvolging blijft beschikbaar.','Enregistrer la visite':'Bezoek opslaan','Visites précédentes':'Eerdere bezoeken',
 'Importer une liste':'Lijst importeren','ou collez le contenu':'of plak de inhoud','Départ':'Start','Tous statuts':'Alle statussen','Tous quartiers':'Alle wijken',
 'À visiter':'Te bezoeken','Rendez-vous':'Afspraak','Démo faite':'Demo gedaan','Pas intéressé':'Niet geïnteresseerd',
 'Ajouter à la tournée':'Aan ronde toevoegen','Retirer de la tournée':'Uit ronde halen','Modifier':'Bewerken',
@@ -1325,7 +1349,7 @@ new MutationObserver(ms => ms.forEach(m => {
 })).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTR });
 Object.assign(D, {'Adresse introuvable. Essayez un quartier ou « Déplacer sur la carte ».':'Adres niet gevonden. Probeer een wijk of « Verplaats op de kaart ».'});
 Object.assign(D, {'Point de départ':'Startpunt','Adresse ou quartier':'Adres of wijk','Chercher':'Zoeken','Région':'Regio','Peu importe, le plus proche du départ':'Maakt niet uit, dichtst bij mijn start','Nombre d’arrêts':'Aantal stops','Déplacement':'Verplaatsing','À pied':'Te voet','En voiture':'Met de auto','Seulement nouveaux et fort potentiel':'Alleen nieuwe en hoge potentie','Inclure les relances':'Opvolgingen meenemen','Déplacer sur la carte':'Verplaats op de kaart','Ouvrir dans Google Maps':'Openen in Google Maps','Départ : repère sur la carte (Agdal par défaut)':'Start: pin op de kaart (standaard Agdal)'});
-FRAG.push([/position approximative/g,'positie bij benadering'],[/(\d+) positions trouvées, (\d+) approximatives\./,'$1 posities gevonden, $2 bij benadering.'],[/^Départ : (?=.)/,'Start: '],[/^Chercher les positions manquantes \((\d+)\)/,'Ontbrekende posities opzoeken ($1)'],[/(\d+) arrêts · /,'$1 stops · '],[/(\d+) positions trouvées, (\d+) introuvables\./,'$1 posities gevonden, $2 niet gevonden.'],[/Plus de restaurants ne correspondent pas aux filtres/,'Er zijn geen restaurants meer die aan de filters voldoen'],[/ \(certains n’ont pas encore de position\)/,' (sommige hebben nog geen positie)'],[/Essayez une autre région ou désactivez « nouveaux et fort potentiel »\./,'Probeer een andere regio of zet “alleen nieuwe en hoge potentie” uit.'],[/Aucun restaurant ne correspond\. Essayez une autre région, désactivez « nouveaux et fort potentiel »/,'Geen enkel restaurant past. Probeer een andere regio, zet “alleen nieuwe en hoge potentie” uit'],[/ ou cherchez les positions manquantes\./,' of zoek de ontbrekende posities op.'],[/Déplacez le repère D sur la carte, puis revenez sur Aujourd’hui\./,'Sleep de pin D op de kaart en ga dan terug naar Vandaag.']);
+FRAG.push([/^(\d+) suivis en retard$/,'$1 acties te laat'],[/position approximative/g,'positie bij benadering'],[/(\d+) positions trouvées, (\d+) approximatives\./,'$1 posities gevonden, $2 bij benadering.'],[/^Départ : (?=.)/,'Start: '],[/^Chercher les positions manquantes \((\d+)\)/,'Ontbrekende posities opzoeken ($1)'],[/(\d+) arrêts · /,'$1 stops · '],[/(\d+) positions trouvées, (\d+) introuvables\./,'$1 posities gevonden, $2 niet gevonden.'],[/Plus de restaurants ne correspondent pas aux filtres/,'Er zijn geen restaurants meer die aan de filters voldoen'],[/ \(certains n’ont pas encore de position\)/,' (sommige hebben nog geen positie)'],[/Essayez une autre région ou désactivez « nouveaux et fort potentiel »\./,'Probeer een andere regio of zet “alleen nieuwe en hoge potentie” uit.'],[/Aucun restaurant ne correspond\. Essayez une autre région, désactivez « nouveaux et fort potentiel »/,'Geen enkel restaurant past. Probeer een andere regio, zet “alleen nieuwe en hoge potentie” uit'],[/ ou cherchez les positions manquantes\./,' of zoek de ontbrekende posities op.'],[/Déplacez le repère D sur la carte, puis revenez sur Aujourd’hui\./,'Sleep de pin D op de kaart en ga dan terug naar Vandaag.']);
 setLang(lang);
 showTab('today');
 
