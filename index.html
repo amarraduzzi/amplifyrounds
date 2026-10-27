@@ -192,6 +192,13 @@ header h1{font-size:26px}dialog h2{font-size:24px}
 #today .plan .line{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
 #today .plan .btn{background:transparent;border-color:#ffffff66;color:#fff;border-radius:10px;min-height:46px}
 #today .plan .btn.primary{background:var(--green);border-color:var(--green);color:var(--ink);font-weight:700}
+/* follow-up rows: name on top, one fixed 4-column action row below */
+#today .fu-item{display:grid;gap:8px;padding:12px 0;border-top:1px solid #0001}
+#today .fu-info{min-width:0}
+#today .fu-acts{display:grid;grid-template-columns:1fr 1fr 1fr 48px;gap:8px;align-items:stretch}
+#today .fu-acts .btn{min-height:44px;padding:0 6px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:10px}
+#today .fu-acts .btn.go{border-color:var(--accent);color:var(--accent);font-weight:600}
+#today .fu-acts .fu-done{padding:0;font-size:18px}
 #today .stops{background:#fff;border:1px solid var(--line);border-radius:14px;padding:4px 14px}
 #today .stop{grid-template-columns:30px 1fr;gap:12px;padding:12px 0}
 #today .stop:first-child{padding-bottom:4px;align-items:center}
@@ -1307,7 +1314,7 @@ function fuSection() {
   const t = todayLocal(), srt = a => a.slice().sort((x, y) => x.due_date.localeCompare(y.due_date));
   const item = a => {
     const r = rows.find(x => x.id === a.restaurant_id); if (!r) return '';
-    return `<div data-id="${a.id}" data-r="${r.id}" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid #0001"><div style="flex:1 1 180px"><b>${esc(r.name)}</b><div class="leg ${a.due_date < t ? 'late' : ''}">${esc(FU_TYPES[a.type] || a.type)} · ${fmtD(a.due_date)}${a.note ? ' · ' + esc(a.note) : ''}</div></div><button class="btn" data-fu2="visit" type="button">Visite</button><button class="btn" data-fu2="ics" type="button">Agenda</button>${r.phone ? '<button class="btn" data-fu2="wa" type="button">WhatsApp</button>' : ''}<button class="btn" data-fu2="done" type="button" aria-label="Terminer">✓</button></div>`;
+    return `<div class="fu-item" data-id="${a.id}" data-r="${r.id}"><div class="fu-info"><b>${esc(r.name)}</b><div class="leg ${a.due_date < t ? 'late' : ''}">${esc(FU_TYPES[a.type] || a.type)} · ${fmtD(a.due_date)}${a.note ? ' · ' + esc(a.note) : ''}</div></div><div class="fu-acts"><button class="btn go" data-fu2="visit" type="button">Visite</button><button class="btn" data-fu2="ics" type="button">Agenda</button>${r.phone ? '<button class="btn" data-fu2="wa" type="button">WhatsApp</button>' : '<span class="fu-gap" aria-hidden="true"></span>'}<button class="btn fu-done" data-fu2="done" type="button" aria-label="Terminer">✓</button></div></div>`;
   };
   const grp = (title, arr, st) => arr.length ? `<div class="lbl" style="margin-top:8px;${st}">${title} (${arr.length})</div>` + srt(arr).slice(0, 8).map(item).join('') + (arr.length > 8 ? `<div class="leg">+${arr.length - 8}</div>` : '') : '';
   return `<section class="card"><b style="color:var(--ink)">Suivis</b>${grp('En retard', fus.filter(a => a.due_date < t), 'color:#C0392B;font-weight:700')}${grp('Aujourd’hui', fus.filter(a => a.due_date === t), '')}${grp('À venir', fus.filter(a => a.due_date > t), 'color:var(--mute)')}</section>`;
