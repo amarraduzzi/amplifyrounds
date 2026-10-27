@@ -356,6 +356,15 @@ header h1{font-size:26px}dialog h2{font-size:24px}
 <p style="margin:0;color:var(--mute);font-size:14px">Ces textes sont partagés avec toute l’équipe. Variables : {salut} (Salam + prénom), {date}, {heure}, {site}. Les messages de confirmation doivent garder {date} (et {heure} pour celui avec l’heure).</p>
 <div id="tplFields"></div>
 <div class="foot"><button type="button" class="btn" id="btnTplReset">Textes d’origine</button><button type="button" class="btn" id="btnTplCancel">Annuler</button><button type="button" class="btn primary" id="btnTplSave">Enregistrer</button></div></form></dialog>
+<dialog id="dlgWaPick"><form method="dialog" id="fWaPick"><h2 id="waPickTitle">WhatsApp</h2>
+<div id="waPickSub" style="color:var(--mute);font-size:14px"></div>
+<div id="waPickBtns" style="display:grid;gap:8px">
+<button type="button" class="btn" data-wp="appt">RDV : confirmer ou proposer</button>
+<button type="button" class="btn" data-wp="info">Infos et exemples</button>
+<button type="button" class="btn" data-wp="follow">Relancer l’intérêt</button>
+</div>
+<div id="waPickNote" hidden style="color:var(--mute);font-size:13px">Numéro fixe ou non reconnu : pas de modèles WhatsApp.</div>
+<div class="foot"><button type="button" class="btn" id="waPickCancel">Fermer</button></div></form></dialog>
 <dialog id="dlgW"><form method="dialog" id="fW"><h2>Réglages du score</h2><p style="margin:0;color:var(--mute);font-size:14px">Plus le nombre est grand, plus ce critère compte. Les réglages restent sur cet appareil.</p><div id="wFields" class="two"></div><div class="foot"><button type="button" class="btn" id="btnWReset">Réinitialiser</button><button type="button" class="btn" id="btnWCancel">Annuler</button><button class="btn primary" value="ok">Enregistrer</button></div></form></dialog>
 <!-- Online search -->
 <dialog id="dlgSearch">
@@ -390,13 +399,14 @@ const WA_DEF = { ...WA_TPL, site: WA_CFG.site };
 const TPL_F = [['appt_prop', 'Proposer un RDV (sans date)'], ['appt_date', 'Confirmer un RDV (date sans heure)'], ['appt_full', 'Confirmer un RDV (date et heure)'], ['info', 'Infos et exemples'], ['follow', 'Relancer l’intérêt'], ['site', 'Lien du site ou de la démo ({site})']];
 const applyTpl = rowsT => { Object.assign(WA_TPL, Object.fromEntries(Object.entries(WA_DEF).filter(([k]) => k !== 'site'))); WA_CFG.site = WA_DEF.site; (rowsT || []).forEach(x => { if (x.key === 'site') WA_CFG.site = x.body; else if (x.key in WA_TPL) WA_TPL[x.key] = x.body; }); };
 const isMobileMA = p => /^212[67]\d{8}$/.test(waNumber(p));
-function waText(kind, f) {
-  const c = (f.contact_name?.value || '').split(',')[0].trim(), nc = f.next_contact.value;
+function waBuild(kind, name, nc, tv0) {
+  const c = String(name || '').split(',')[0].trim();
   const date = nc ? new Date(nc + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
-  const tv = nc ? (f.next_time?.value || '') : '', heure = tv ? tv.slice(0, 2).replace(/^0/, '') + 'h' + (tv.slice(3, 5) === '00' ? '' : tv.slice(3, 5)) : '';
+  const tv = nc ? (tv0 || '') : '', heure = tv ? tv.slice(0, 2).replace(/^0/, '') + 'h' + (tv.slice(3, 5) === '00' ? '' : tv.slice(3, 5)) : '';
   const key = kind === 'appt' ? (date ? (heure ? 'appt_full' : 'appt_date') : 'appt_prop') : kind;
   return WA_TPL[key].replace('{salut}', c ? 'Salam ' + c + ' !' : 'Salam !').replace('{date}', date).replace('{heure}', heure).replace('{site}', WA_CFG.site);
 }
+function waText(kind, f) { return waBuild(kind, f.contact_name?.value, f.next_contact.value, f.next_time?.value); }
 const WA_INTRO = "Bonjour, c’est l’équipe Amplify. Merci pour l’échange aujourd’hui !";
 
 const STATUS = {
@@ -692,7 +702,7 @@ function renderRoute() {
   $('#stops').innerHTML = (list.length ? `<li class="stop"><span class="num start">D</span><div><b>Départ</b></div><span></span></li>` : '') + list.map((r, i) => `
     <li class="stop"><span class="num">${route ? i + 1 : '·'}</span>
       <div><b>${esc(r.name)}</b><div class="leg">${esc(r.district || '')}${route && legs[i] ? (r.district ? ' · ' : '') + km(legs[i].distance) + ', ' + mins(legs[i].duration) : ''}</div></div>
-      <div class="acts"><button class="btn" onclick="wazeTo('${r.id}')">Waze</button><button class="btn" onclick="openVisit('${r.id}')">Visite</button></div>
+      <div class="acts"><button class="btn" onclick="wazeTo('${r.id}')">Waze</button>${r.phone ? `<button class="btn" onclick="waPick('${r.id}')">WhatsApp</button>` : ''}<button class="btn" onclick="openVisit('${r.id}')">Visite</button></div>
     </li>`).join('');
   if (route) {
     L.polyline(route.geometry, { color: '#1F5FBF', weight: 5, opacity: .85 }).addTo(routeLayer);
@@ -857,6 +867,23 @@ $('#btnTplSave').onclick = async () => {
   } catch (err) { toast('Erreur : ' + (/app_texts/.test(err.message || '') ? 'lance schema-update-6.sql dans Supabase.' : err.message), 6000); }
 };
 $('#btnVisitCancel').onclick = () => $('#dlgVisit').close();
+// ---- WhatsApp rapide (route, Aujourd’hui, suivis) : choix parmi les 3 messages ----
+let waPickId = null;
+window.waPick = id => {
+  const r = rows.find(x => x.id === id); if (!r) return;
+  if (!r.phone) return toast('Pas de numéro pour ce restaurant.');
+  waPickId = id; const ok = isMobileMA(r.phone);
+  $('#waPickTitle').textContent = r.name;
+  $('#waPickSub').textContent = ok ? 'Choisis le message à envoyer :' : '';
+  $('#waPickBtns').hidden = !ok; $('#waPickNote').hidden = ok;
+  $('#dlgWaPick').showModal();
+};
+$('#waPickCancel').onclick = () => $('#dlgWaPick').close();
+$('#waPickBtns').addEventListener('click', e => {
+  const b = e.target.closest('[data-wp]'); const r = rows.find(x => x.id === waPickId); if (!b || !r || !isMobileMA(r.phone)) return;
+  window.open('https://wa.me/' + waNumber(r.phone) + '?text=' + encodeURIComponent(waBuild(b.dataset.wp, '', r.next_contact, r.next_time)), '_blank');
+  $('#dlgWaPick').close();
+});
 $('#waTpl').addEventListener('click', e => {
   const b = e.target.closest('[data-wa]'); const r = rows.find(x => x.id === visitId); if (!b || !r || !isMobileMA(r.phone)) return;
   window.open('https://wa.me/' + waNumber(r.phone) + '?text=' + encodeURIComponent(waText(b.dataset.wa, $('#fVisit'))), '_blank');
@@ -1229,7 +1256,7 @@ function fuSection() {
   const t = todayLocal(), srt = a => a.slice().sort((x, y) => x.due_date.localeCompare(y.due_date));
   const item = a => {
     const r = rows.find(x => x.id === a.restaurant_id); if (!r) return '';
-    return `<div data-id="${a.id}" data-r="${r.id}" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid #0001"><div style="flex:1 1 180px"><b>${esc(r.name)}</b><div class="leg ${a.due_date < t ? 'late' : ''}">${esc(FU_TYPES[a.type] || a.type)} · ${fmtD(a.due_date)}${a.note ? ' · ' + esc(a.note) : ''}</div></div><button class="btn" data-fu2="visit" type="button">Visite</button><button class="btn" data-fu2="ics" type="button">Agenda</button>${r.phone && isMobileMA(r.phone) ? '<button class="btn" data-fu2="wa" type="button">WhatsApp</button>' : ''}<button class="btn" data-fu2="done" type="button" aria-label="Terminer">✓</button></div>`;
+    return `<div data-id="${a.id}" data-r="${r.id}" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid #0001"><div style="flex:1 1 180px"><b>${esc(r.name)}</b><div class="leg ${a.due_date < t ? 'late' : ''}">${esc(FU_TYPES[a.type] || a.type)} · ${fmtD(a.due_date)}${a.note ? ' · ' + esc(a.note) : ''}</div></div><button class="btn" data-fu2="visit" type="button">Visite</button><button class="btn" data-fu2="ics" type="button">Agenda</button>${r.phone ? '<button class="btn" data-fu2="wa" type="button">WhatsApp</button>' : ''}<button class="btn" data-fu2="done" type="button" aria-label="Terminer">✓</button></div>`;
   };
   const grp = (title, arr, st) => arr.length ? `<div class="lbl" style="margin-top:8px;${st}">${title} (${arr.length})</div>` + srt(arr).slice(0, 8).map(item).join('') + (arr.length > 8 ? `<div class="leg">+${arr.length - 8}</div>` : '') : '';
   return `<section class="card"><b style="color:var(--ink)">Suivis</b>${grp('En retard', fus.filter(a => a.due_date < t), 'color:#C0392B;font-weight:700')}${grp('Aujourd’hui', fus.filter(a => a.due_date === t), '')}${grp('À venir', fus.filter(a => a.due_date > t), 'color:var(--mute)')}</section>`;
@@ -1250,7 +1277,7 @@ function renderToday() {
     const v = r.g_reviews, late = due && r.next_contact < today;
     const why = due ? `Relance prévue le ${fmtD(r.next_contact)}${late ? ' (en retard)' : ''}${r.next_step ? ' : ' + esc(r.next_step) : ''}`
       : `Score ${leadScore(r)}${r.website_status === 'no' ? ' · pas de site' : ''}${v ? ' · ' + v + ' avis' : ''}${r.last_visit_at ? '' : ' · jamais visité'}`;
-    return `<li class="stop${due ? ' fu' : ''}${late ? ' late' : ''}"><span class="num">${i + 1}</span><div><b>${esc(r.name)}</b><div class="leg ${late ? 'late' : ''}">${esc(r.district || '')}${r.district ? ' · ' : ''}${why}</div><div class="tip">${tipFor(r)}</div><div class="acts"><button class="btn sm" onclick="wazeTo('${r.id}')">Waze</button><button class="btn sm go" onclick="openVisit('${r.id}')">Visite</button></div></div></li>`;
+    return `<li class="stop${due ? ' fu' : ''}${late ? ' late' : ''}"><span class="num">${i + 1}</span><div><b>${esc(r.name)}</b><div class="leg ${late ? 'late' : ''}">${esc(r.district || '')}${r.district ? ' · ' : ''}${why}</div><div class="tip">${tipFor(r)}</div><div class="acts"><button class="btn sm" onclick="wazeTo('${r.id}')">Waze</button>${r.phone ? `<button class="btn sm" onclick="waPick('${r.id}')">WhatsApp</button>` : ''}<button class="btn sm go" onclick="openVisit('${r.id}')">Visite</button></div></div></li>`;
   }).join('')}</ol>${P.items.length < day.n ? `<div class="empty">Plus de restaurants ne correspondent pas aux filtres${missing ? ' (certains n’ont pas encore de position)' : ''}. Essayez une autre région ou désactivez « nouveaux et fort potentiel ».</div>` : ''}`
   : `<div class="empty">${rows.length ? 'Aucun restaurant ne correspond. Essayez une autre région, désactivez « nouveaux et fort potentiel »' + (missing ? ' ou cherchez les positions manquantes.' : '.') : 'Ajoutez des restaurants avec une position (liste, import ou recherche en ligne) pour recevoir un conseil.'}</div>`;
   const nLate = fus.filter(a => a.due_date < todayLocal()).length;
@@ -1297,7 +1324,7 @@ $('#today').addEventListener('click', async e => {
   const row = b.closest('[data-id]'), rid = row.dataset.r, a = fus.find(x => x.id === row.dataset.id);
   if (b.dataset.fu2 === 'visit') return openVisit(rid);
   if (b.dataset.fu2 === 'ics') return void (a && openGoogleCal(a));
-  if (b.dataset.fu2 === 'wa') { const r = rows.find(x => x.id === rid); if (r && isMobileMA(r.phone)) window.open('https://wa.me/' + waNumber(r.phone) + '?text=' + encodeURIComponent(WA_INTRO), '_blank'); return; }
+  if (b.dataset.fu2 === 'wa') return waPick(rid);
   if (b.dataset.fu2 === 'done' && a) { try { await store.fuSave({ ...a, status: 'done', done_at: new Date().toISOString() }); await syncRestaurant(rid); await reload(); toast('Action terminée.'); } catch (err) { toast('Erreur : ' + err.message, 5000); } }
 });
 $('#today').addEventListener('click', async e => {
@@ -1454,6 +1481,7 @@ const FRAG = [
 [/^À visiter(?= ·|$)/,'Te bezoeken'],[/^Rendez-vous(?= ·|$)/,'Afspraak'],[/^Démo faite(?= ·|$)/,'Demo gedaan'],[/^Client(?= ·|$)/,'Klant'],[/^Pas intéressé(?= ·|$)/,'Niet geïnteresseerd']
 ];
 Object.assign(D, {'Aperçu':'Overzicht','Relances à faire':'Opvolgingen','Meilleures pistes pas encore visitées':'Beste kansen, nog niet bezocht','Aucune relance en attente.':'Geen opvolgingen open.','Rien à afficher.':'Niets te tonen.','Mettre à jour les restaurants déjà dans la liste (remplit seulement les champs vides)':'Restaurants die al in de lijst staan bijwerken (vult alleen lege velden in)'});
+Object.assign(D, {'Choisis le message à envoyer :':'Kies het bericht om te sturen:','Pas de numéro pour ce restaurant.':'Geen nummer voor dit restaurant.','Numéro fixe ou non reconnu : pas de modèles WhatsApp.':'Vast of onbekend nummer: geen WhatsApp-berichten.','Fermer':'Sluiten'});
 Object.assign(D, {'Restaurants, cafés et pâtisseries de la zone':'Restaurants, cafés en patisserieën in de regio'});
 Object.assign(D, {'Carte':'Kaart','Chiffres':'Cijfers','Visités':'Bezocht','Visites (cette semaine)':'Bezoeken (deze week)','Entonnoir':'Trechter','Visites par semaine':'Bezoeken per week','Par personne (30 jours)':'Per persoon (30 dagen)','Quartiers':'Wijken','Objections':'Bezwaren','Intérêt produits':'Interesse per product','Pas encore de visites enregistrées. Les chiffres apparaissent après vos premières visites.':'Nog geen bezoeken vastgelegd. De cijfers verschijnen na jullie eerste bezoeken.','Aujourd’hui':'Vandaag','Combien de temps avez-vous ?':'Hoeveel tijd heb je?','Mettre dans ma tournée':'In mijn ronde zetten','Reprenez où vous en étiez.':'Pak de draad op waar je gebleven was.','Pas de site : proposez Amplify Site (dès 250 DH).':'Geen website: stel Amplify Site voor (vanaf 250 DH).','Beaucoup d’avis, donc du passage : parlez marges et caisse (POS dès 199 DH/mois).':'Veel reviews, dus veel klanten: praat over marges en kassa (POS vanaf 199 DH/maand).','Premier contact : demandez comment ils suivent leurs marges aujourd’hui.':'Eerste contact: vraag hoe ze nu hun marges bijhouden.','Ajoutez des restaurants avec une position (liste, import ou recherche en ligne) pour recevoir un conseil.':'Voeg restaurants met een locatie toe (lijst, import of online zoeken) om advies te krijgen.','Réglages du score':'Score-instellingen','Réinitialiser':'Standaard herstellen','Plus le nombre est grand, plus ce critère compte. Les réglages restent sur cet appareil.':'Hoe groter het getal, hoe zwaarder het criterium telt. De instellingen blijven op dit apparaat.','Réglages réinitialisés.':'Instellingen hersteld.','Pas de site web':'Geen website','A déjà un site web':'Heeft al een website','Avis Google (maximum)':'Google-reviews (maximum)','Bonne note Google':'Goede Google-score','Note Google basse':'Lage Google-score','Café dans un quartier difficile':'Café in een lastige buurt','Rendez-vous ou démo en cours':'Afspraak of demo bezig','Déjà intéressé':'Al geïnteresseerd','En période d’essai':'In proefperiode','Relance à faire':'Opvolging nodig','Base':'Basis','Score':'Score','Fermer':'Sluiten','Résultat':'Uitkomst','Pas là':'Niet aanwezig','Parlé au gérant':'Met manager gesproken','Intéressé':'Geïnteresseerd','RDV pris':'Afspraak gemaakt','Parlé avec':'Gesproken met','Intérêt':'Interesse','Objection':'Bezwaar','Prix':'Prijs','Déjà équipé':'Al uitgerust','Pas le temps':'Geen tijd','Pas le décideur':'Niet de beslisser','Autre':'Anders','Demain':'Morgen','+3 jours':'+3 dagen','+1 semaine':'+1 week','Visité':'Bezocht','Essai en cours':'Proefperiode','À relancer':'Opvolgen','Pas encore visité':'Nog niet bezocht','Prénom, rôle':'Voornaam, functie','Type':'Type','Site web':'Website','Inconnu':'Onbekend','Pas de site':'Geen website','A un site':'Heeft website','Note Google':'Google-score','Nombre d’avis':'Aantal reviews','Environnement':'Omgeving','Quartier agréable':'Fijne buurt','Moyen':'Matig','Quartier difficile':'Lastige buurt','Pâtisserie':'Patisserie','Client':'Klant','Chercher en ligne':'Online zoeken','Recherche en ligne':'Online zoeken','Nom du restaurant':'Naam restaurant','Tous les restaurants de la zone':'Alle restaurants in de regio','Fermer':'Sluiten','Ajouter':'Toevoegen','Déjà dans la liste':'Staat al in de lijst','Tout ajouter':'Alles toevoegen','Ajouté.':'Toegevoegd.','Aucun résultat en ligne.':'Niets gevonden.','Chargement des restaurants…':'Restaurants laden…','Service indisponible, réessayez.':'Service niet beschikbaar, probeer het later opnieuw.'});
 FRAG.push([/(\d+) visités · (\d+) positifs/,'$1 bezocht · $2 positief'],[/(\d+) à relancer/,'$1 opvolgen'],[/(\d+) pas encore visités/,'$1 nog niet bezocht'],[/(\d+) visites cette semaine/,'$1 bezoeken deze week'],[/^Relance prévue le /,'Opvolging gepland op '],[/ \(en retard\)/,' (te laat)'],[/ · pas de site/,' · geen website'],[/ · (\d+) avis/,' · $1 reviews'],[/ · jamais visité/,' · nog nooit bezocht'],[/(\d+) avis Google/,'$1 Google-reviews'],[/^À compléter : /,'Nog aan te vullen: '],[/Site web inconnu/,'Website onbekend'],[/Avis Google manquants/,'Google-reviews ontbreken'],[/Environnement non renseigné/,'Omgeving niet ingevuld'],[/ · visité /,' · bezocht '],[/^Visité(?= ·|$)/,'Bezocht'],[/^Intéressé(?= ·|$)/,'Geïnteresseerd'],[/^Essai en cours(?= ·|$)/,'Proefperiode'],[/— Pas là/,'— Niet aanwezig'],[/— Parlé au gérant/,'— Met manager gesproken'],[/— Intéressé/,'— Geïnteresseerd'],[/— RDV pris/,'— Afspraak gemaakt'],[/— Pas intéressé/,'— Niet geïnteresseerd'],[/\(sans note\)/,'(geen notitie)'],[/(· |— )par /,'$1door '],[/(\d+) résultats/,'$1 resultaten'],[/(\d+) nouveaux/,'$1 nieuw'],[/^(\d+) ajoutés\./,'$1 toegevoegd.'],[/^(\d+) restaurants \?$/,'$1 restaurants toevoegen?']);
