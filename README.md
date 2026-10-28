@@ -83,3 +83,14 @@ No SQL needed. The tab "Vandaag" now builds a route for you: choose a starting p
 
 Geen SQL nodig. Upload `index.html`, `sw.js`, `manifest.webmanifest` en de vier `.png` iconen naar de root van de repo.
 Installeren op het beginscherm: iPhone → Safari → Deel → "Zet op beginscherm"; Android → Chrome → menu → "App installeren".
+
+## Update 27: vaste ronde, bezoekformulier, dagoverzicht
+
+Run `schema-update-7.sql` in Supabase (needed to edit earlier visits). Upload `index.html`, `sw.js` and `README.md`.
+- Vandaag: "Ronde starten" freezes today's stops. Per stop: Navigeer (Google Maps with only that restaurant, searched by name, starting from where you are), Bezoek, Overslaan. Saving a visit ticks the stop off and shows the next one. When done: "Terug naar start" (the car) or "Nieuwe ronde vanaf hier".
+- Radius around the start (1, 2, 3, 5, 10 km) and "Terug naar startpunt (auto)" switch. Restaurants can be added to the plan or the running round by name; new walk-ins via "+ Nieuw restaurant" (GPS position and visit form open straight away). A walk-in counts as a visit of today once the visit is saved.
+- Google Maps links use restaurant name + address/district instead of coordinates, so no more "dropped pin". Walking routes on the map use a walking router.
+- Visit form: "Gesproken met baas" added, "Interesse" and "WhatsApp-opvolging" removed, contact moments shown at the top, follow-up grouped, save button always visible. Earlier visits can be edited or deleted.
+- When a visit is saved during a round and the restaurant has no or an approximate position, the phone's GPS position is stored.
+- "Bezoeken van de dag" on Vandaag and "Bezochte restaurants in deze periode" in Cijfers, with WhatsApp, Bellen, Agenda and Openen per restaurant.
+- Fix: on phones the page was slightly wider than the screen (date and time fields ran off the form).

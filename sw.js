@@ -1,5 +1,5 @@
 // Amplify Tournée: offline shell. Network first, so updates on GitHub always win.
-const V = 'tournee-v26';
+const V = 'tournee-v27';
 const CDN = ['cdnjs.cloudflare.com', 'cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(V).then(c => c.addAll(['./', 'index.html', 'manifest.webmanifest', 'icon-192.png'])).then(() => self.skipWaiting()));
