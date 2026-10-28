@@ -1241,24 +1241,27 @@ function regionOptions() {
   return [...m.values()].sort((a, b) => b.n - a.n);
 }
 function planDay() {
-  const today = new Date().toISOString().slice(0, 10), now = Date.now(), n = day.n;
+  const today = new Date().toISOString().slice(0, 10), n = day.n;
   const inReg = r => !day.region || norm(r.district || '') === day.region;
   const live = rows.filter(r => r.lat != null && r.lng != null && r.status !== 'client' && r.status !== 'lost');
-  const recent = r => r.last_visit_at && now - new Date(r.last_visit_at) < 7 * 864e5;
   const isDue = r => r.next_contact && r.next_contact <= today;
+  // Always local: without a region, nothing farther than this from the start (walking 3 km, car 8 km).
+  const maxM = day.region ? Infinity : (day.mode === 'walk' ? 3000 : 8000);
+  const near = r => haversine(start, r) <= maxM;
   const picks = [];
+  // 1) follow-ups that are due (or late), near the start
   if (day.followUps) {
-    const maxM = day.region ? Infinity : 6000; // without a region, only follow-ups within 6 km of the start
-    live.filter(r => isDue(r) && inReg(r) && haversine(start, r) <= maxM).sort((a, b) => a.next_contact.localeCompare(b.next_contact))
-      .slice(0, Math.max(1, Math.round(n / 3))).forEach(r => picks.push({ r, due: true }));
+    live.filter(r => isDue(r) && inReg(r) && near(r)).sort((a, b) => a.next_contact.localeCompare(b.next_contact) || haversine(start, a) - haversine(start, b))
+      .slice(0, Math.max(1, Math.ceil(n / 2))).forEach(r => picks.push({ r, due: true }));
   }
-  const ok = r => !recent(r) && inReg(r) && (!day.newOnly || (!r.last_visit_at && r.status === 'new' && leadScore(r) >= HI));
+  // 2) restaurants never visited (nothing else: no revisits without a due follow-up), near the start
+  const ok = r => !r.last_visit_at && r.status === 'new' && inReg(r) && near(r) && (!day.newOnly || leadScore(r) >= HI);
   let pool = live.filter(r => !picks.some(p => p.r === r) && ok(r));
   const poolSize = pool.length;
   while (picks.length < n && pool.length) {
     const pts = [start, ...picks.map(p => p.r)], c = { lat: pts.reduce((s, x) => s + x.lat, 0) / pts.length, lng: pts.reduce((s, x) => s + x.lng, 0) / pts.length };
     let best = null, bv = -1e9;
-    for (const r of pool) { const v = leadScore(r) - 3 * haversine(c, r) / 1000; if (v > bv) { bv = v; best = r; } }
+    for (const r of pool) { const v = leadScore(r) - 20 * haversine(c, r) / 1000; if (v > bv) { bv = v; best = r; } } // distance dominates, score breaks ties
     picks.push({ r: best, due: false }); pool = pool.filter(x => x !== best);
   }
   if (!picks.length) return { items: [], dist: 0, dur: 0, poolSize };
@@ -1336,7 +1339,7 @@ function renderToday() {
     const why = due ? `Relance prévue le ${fmtD(r.next_contact)}${late ? ' (en retard)' : ''}${r.next_step ? ' : ' + esc(r.next_step) : ''}`
       : `Score ${leadScore(r)}${r.website_status === 'no' ? ' · pas de site' : ''}${v ? ' · ' + v + ' avis' : ''}${r.last_visit_at ? '' : ' · jamais visité'}`;
     return `<li class="stop${due ? ' fu' : ''}${late ? ' late' : ''}"><span class="num">${i + 1}</span><div><b>${esc(r.name)}</b><div class="leg ${late ? 'late' : ''}">${esc(r.district || '')}${r.district ? ' · ' : ''}${why}</div><div class="tip">${tipFor(r)}</div><div class="acts"><button class="btn sm" onclick="wazeTo('${r.id}')">Waze</button>${r.phone ? `<button class="btn sm" onclick="waPick('${r.id}')">WhatsApp</button>` : ''}<button class="btn sm go" onclick="openVisit('${r.id}')">Visite</button></div></div></li>`;
-  }).join('')}</ol>${P.items.length < day.n ? `<div class="empty">Plus de restaurants ne correspondent pas aux filtres${missing ? ' (certains n’ont pas encore de position)' : ''}. Essayez une autre région ou désactivez « nouveaux et fort potentiel ».</div>` : ''}`
+  }).join('')}</ol>${P.items.length < day.n ? `<div class="empty">Plus de restaurants ne correspondent pas aux filtres${missing ? ' (certains n’ont pas encore de position)' : ''}. Seuls les restaurants proches du départ, jamais visités ou à relancer, sont proposés. Changez le départ ou choisissez une région.</div>` : ''}`
   : `<div class="empty">${rows.length ? 'Aucun restaurant ne correspond. Essayez une autre région, désactivez « nouveaux et fort potentiel »' + (missing ? ' ou cherchez les positions manquantes.' : '.') : 'Ajoutez des restaurants avec une position (liste, import ou recherche en ligne) pour recevoir un conseil.'}</div>`;
   const nLate = fus.filter(a => a.due_date < todayLocal()).length;
   el.innerHTML = `<div class="strip">${nLate ? `<span class="pill hot">${nLate} suivis en retard</span>` : ''}<span class="pill${nDue ? ' hot' : ''}">${nDue} à relancer</span><span class="pill">${nNew} pas encore visités</span><span class="pill">${nWeek} visites cette semaine</span></div>
@@ -1582,6 +1585,7 @@ new MutationObserver(ms => ms.forEach(m => {
   else if (m.type === 'characterData') doText(m.target);
   else doEl(m.target);
 })).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTR });
+FRAG.push([/Seuls les restaurants proches du départ, jamais visités ou à relancer, sont proposés\./,'Alleen restaurants dicht bij je start die je nog niet bezocht hebt of moet opvolgen worden voorgesteld.'],[/Changez le départ ou choisissez une région\./,'Verander je startpunt of kies een regio.']);
 Object.assign(D, {'Adresse introuvable. Essayez un quartier ou « Déplacer sur la carte ».':'Adres niet gevonden. Probeer een wijk of « Verplaats op de kaart ».'});
 Object.assign(D, {'Point de départ':'Startpunt','Adresse ou quartier':'Adres of wijk','Chercher':'Zoeken','Région':'Regio','Peu importe, le plus proche du départ':'Maakt niet uit, dichtst bij mijn start','Nombre d’arrêts':'Aantal stops','Déplacement':'Verplaatsing','À pied':'Te voet','En voiture':'Met de auto','Seulement nouveaux et fort potentiel':'Alleen nieuwe en hoge potentie','Inclure les relances':'Opvolgingen meenemen','Déplacer sur la carte':'Verplaats op de kaart','Ouvrir dans Google Maps':'Openen in Google Maps','Départ : repère sur la carte (Agdal par défaut)':'Start: pin op de kaart (standaard Agdal)'});
 FRAG.push([/^(\d+) suivis en retard$/,'$1 acties te laat'],[/(\d+) visites · (\d+) conversations/,'$1 bezoeken · $2 gesprekken'],[/(\d+ %|—) des visites/,'$1 van de bezoeken'],[/(\d+ %|—) des restaurants visités/,'$1 van de bezochte restaurants'],[/^Définitions : .*$/s,'Definities: een gesprek is het resultaat “Parlé au gérant”, “Intéressé”, “RDV pris” of “Pas intéressé”. Percentages delen door het aantal bezoeken; “klant geworden” deelt door het aantal verschillende restaurants dat in de periode is bezocht (huidige status). Een restaurant dat twee keer is bezocht telt als twee bezoeken, maar één keer als restaurant.'],[/^(\d+) visites$/,'$1 bezoeken'],[/^(\d+) conversations$/,'$1 gesprekken'],[/^(\d+) intéressés$/,'$1 geïnteresseerd'],[/^(\d+) RDV pris$/,'$1 afspraken gemaakt'],[/^(\d+) suivis terminés$/,'$1 acties afgerond'],[/^(\d+) suivis ouverts$/,'$1 openstaande acties'],[/position approximative/g,'positie bij benadering'],[/(\d+) positions trouvées, (\d+) approximatives\./,'$1 posities gevonden, $2 bij benadering.'],[/^Départ : (?=.)/,'Start: '],[/^Chercher les positions manquantes \((\d+)\)/,'Ontbrekende posities opzoeken ($1)'],[/(\d+) arrêts · /,'$1 stops · '],[/(\d+) positions trouvées, (\d+) introuvables\./,'$1 posities gevonden, $2 niet gevonden.'],[/Plus de restaurants ne correspondent pas aux filtres/,'Er zijn geen restaurants meer die aan de filters voldoen'],[/ \(certains n’ont pas encore de position\)/,' (sommige hebben nog geen positie)'],[/Essayez une autre région ou désactivez « nouveaux et fort potentiel »\./,'Probeer een andere regio of zet “alleen nieuwe en hoge potentie” uit.'],[/Aucun restaurant ne correspond\. Essayez une autre région, désactivez « nouveaux et fort potentiel »/,'Geen enkel restaurant past. Probeer een andere regio, zet “alleen nieuwe en hoge potentie” uit'],[/ ou cherchez les positions manquantes\./,' of zoek de ontbrekende posities op.'],[/Déplacez le repère D sur la carte, puis revenez sur Aujourd’hui\./,'Sleep de pin D op de kaart en ga dan terug naar Vandaag.']);
