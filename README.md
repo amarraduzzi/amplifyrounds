@@ -94,3 +94,11 @@ Run `schema-update-7.sql` in Supabase (needed to edit earlier visits). Upload `i
 - When a visit is saved during a round and the restaurant has no or an approximate position, the phone's GPS position is stored.
 - "Bezoeken van de dag" on Vandaag and "Bezochte restaurants in deze periode" in Cijfers, with WhatsApp, Bellen, Agenda and Openen per restaurant.
 - Fix: on phones the page was slightly wider than the screen (date and time fields ran off the form).
+
+## Update 28: nieuwe WhatsApp-berichten
+
+No SQL needed. The 3 old WhatsApp templates are replaced by 2 fixed messages: "Manager + Boss" and "Glovo message" (visit form and the WhatsApp button everywhere). Both can still be edited for the whole team via "WhatsApp-berichten" on the Restaurants tab.
+
+## Update 29: nummer alleen opslaan
+
+No SQL needed. The "WhatsApp-nummer" window now has three buttons: Annuleren, Opslaan (saves the number and closes) and Opslaan en WhatsApp openen.

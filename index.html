@@ -436,9 +436,8 @@ dialog .foot.stick{position:sticky;bottom:0;z-index:3;background:#fff;margin:0 -
       <div class="two"><label>Type d’action<select name="fu_type"><option value="revisit">Repasser</option><option value="call">Appeler</option><option value="wa">WhatsApp à envoyer</option><option value="demo">Faire une démo</option><option value="confirm">Confirmer le RDV</option><option value="info">Envoyer des infos</option></select></label><label>Statut après visite<select name="status"></select></label></div>
       <label>Prochaine étape<input name="next_step" placeholder="Ex. envoyer la démo, repasser jeudi" autocomplete="off"></label>
       <div id="waTpl" hidden><div class="lbl">Envoyer sur WhatsApp</div><div style="display:grid;gap:8px">
-        <button type="button" class="btn" data-wa="appt">RDV : confirmer ou proposer</button>
-        <button type="button" class="btn" data-wa="info">Infos et exemples</button>
-        <button type="button" class="btn" data-wa="follow">Relancer l’intérêt</button>
+        <button type="button" class="btn" data-wa="boss">Manager + Boss</button>
+        <button type="button" class="btn" data-wa="glovo">Glovo message</button>
       </div></div>
       <div id="waNote" hidden style="display:grid;gap:8px;font-size:13px;color:var(--mute)"><div>Pas de numéro mobile valide : pas de modèles WhatsApp.</div><button type="button" class="btn" id="waAddNum">Ajouter un numéro WhatsApp</button></div>
     </div>
@@ -469,19 +468,18 @@ dialog .foot.stick{position:sticky;bottom:0;z-index:3;background:#fff;margin:0 -
 
 <dialog id="dlgWhy"><form method="dialog"><h2 id="whyTitle"></h2><div id="whyBody" class="sres"></div><div id="whyTodo" class="meta" style="color:var(--mute);font-size:13px"></div><div class="foot"><button class="btn primary" value="ok">Fermer</button></div></form></dialog>
 <dialog id="dlgTpl"><form method="dialog" id="fTpl"><h2>Messages WhatsApp</h2>
-<p style="margin:0;color:var(--mute);font-size:14px">Ces textes sont partagés avec toute l’équipe. Variables : {salut} (Salam + prénom), {date}, {heure}, {site}. Les messages de confirmation doivent garder {date} (et {heure} pour celui avec l’heure).</p>
+<p style="margin:0;color:var(--mute);font-size:14px">Ces textes sont partagés avec toute l’équipe.</p>
 <div id="tplFields"></div>
 <div class="foot"><button type="button" class="btn" id="btnTplReset">Textes d’origine</button><button type="button" class="btn" id="btnTplCancel">Annuler</button><button type="button" class="btn primary" id="btnTplSave">Enregistrer</button></div></form></dialog>
 <dialog id="dlgWaNum"><form method="dialog" id="fWaNum"><h2 id="waNumTitle">WhatsApp</h2>
 <div id="waNumNote" style="color:var(--mute);font-size:14px"></div>
 <label>Numéro WhatsApp<input id="waNumInput" type="tel" inputmode="tel" autocomplete="off" placeholder="06 12 34 56 78 · 07… · +212 6…"></label>
-<div class="foot stick"><button type="button" class="btn" id="waNumCancel">Annuler</button><button type="submit" class="btn primary" id="waNumSave">Enregistrer et ouvrir WhatsApp</button></div></form></dialog>
+<div class="foot stick"><button type="button" class="btn" id="waNumCancel">Annuler</button><button type="button" class="btn" id="waNumOnly">Enregistrer</button><button type="submit" class="btn primary" id="waNumSave">Enregistrer et ouvrir WhatsApp</button></div></form></dialog>
 <dialog id="dlgWaPick"><form method="dialog" id="fWaPick"><h2 id="waPickTitle">WhatsApp</h2>
 <div id="waPickSub" style="color:var(--mute);font-size:14px"></div>
 <div id="waPickBtns" style="display:grid;gap:8px">
-<button type="button" class="btn" data-wp="appt">RDV : confirmer ou proposer</button>
-<button type="button" class="btn" data-wp="info">Infos et exemples</button>
-<button type="button" class="btn" data-wp="follow">Relancer l’intérêt</button>
+<button type="button" class="btn" data-wp="boss">Manager + Boss</button>
+        <button type="button" class="btn" data-wp="glovo">Glovo message</button>
 </div>
 <div id="waPickNote" hidden style="color:var(--mute);font-size:13px">Numéro fixe ou non reconnu : pas de modèles WhatsApp.</div>
 <div class="foot"><button type="button" class="btn" id="waPickCancel">Fermer</button></div></form></dialog>
@@ -506,27 +504,17 @@ dialog .foot.stick{position:sticky;bottom:0;z-index:3;background:#fff;margin:0 -
 const CONFIG = { SUPABASE_URL: 'https://ryxjnppbqcatutflhhkh.supabase.co', SUPABASE_ANON_KEY: 'sb_publishable_-XNBZ3o2yi7pcdjsbsakOA_l2d97EAA' };
 const DEFAULT_START = { lat: 33.9916, lng: -6.8498 }; // Agdal, Rabat
 const RABAT = [34.0209, -6.8416];
-// ---- Modèles WhatsApp : modifie ici les textes et les liens (variables : {salut} {date} {site}) ----
-const WA_CFG = { site: 'https://amplifygrowthstudio.com/' };
+// ---- Modèles WhatsApp : 2 messages fixes (modifiables pour toute l’équipe via « Messages WhatsApp ») ----
 const WA_TPL = {
-  appt_full: "{salut} J’espère que tu vas bien 😊\n\nSuite à mon passage chez vous, je te confirme notre rendez-vous pour le {date} à {heure}.\n\nSi cet horaire ne t’arrange pas, dis-moi ce qui te convient le mieux.\n\nÀ bientôt !",
-  appt_date: "{salut} J’espère que tu vas bien 😊\n\nSuite à mon passage chez vous, je te confirme notre rendez-vous pour le {date}. Peux-tu me dire à quelle heure cela t’arrange ?\n\nSi cette date ne convient pas, dis-moi ce qui te va le mieux.\n\nÀ bientôt !",
-  appt_prop: "{salut} J’espère que tu vas bien 😊\n\nSuite à mon passage chez vous, je te propose que nous prenions un moment pour te présenter Amplify Growth Studio.\n\nQuel jour et quelle heure te conviendraient le mieux ?\n\nÀ bientôt !",
-  info: "{salut} Merci pour ton accueil aujourd’hui 😊\n\nComme convenu, voici notre site avec quelques exemples de ce que nous développons pour les restaurants :\n\n{site}\n\nNous aidons les restaurants à mieux gérer leurs opérations, à simplifier leur travail quotidien et à développer leur présence en ligne.\n\nTu peux regarder tranquillement et on en reparle quand tu veux !",
-  follow: "{salut} J’espère que tu vas bien 😊\n\nJe reviens vers toi suite à notre discussion concernant Amplify Growth Studio.\n\nJe serais ravi de te montrer concrètement comment notre système pourrait aider ton restaurant à mieux gérer son activité.\n\nEst-ce que tu serais disponible cette semaine pour une petite démo de 5 minutes ?"
+  boss: "Salam ! M3ak Amar,\n\nLe gars qui va vous faciliter la vie. 😁 Vous m’avez dit que vous transmettriez mes informations au propriétaire. Mais soyons honnêtes… qu’est-ce que vous y gagnez ?\n\nVoici ce que je vous propose : si le propriétaire me contacte et que nous finissons par collaborer, je vous offrirai personnellement une commission d’apporteur d’affaires.\n\nEn plus, avec mes 20+ ans d’expérience dans la restauration, je vous partagerai gratuitement 3 conseils pratiques pour vous faciliter considérablement le travail au quotidien.\n\nTout ce que je vous demande en échange, c’est de transférer le message ci-dessous à votre patron.\n\nMarché conclu ? 🤝\n\nSalam,\n\nJe suis passé dans votre restaurant et j’ai remarqué quelques points qui méritent votre attention… 🤔\n\nJe m’appelle Amar, entrepreneur néerlandais avec plus de 20 ans d’expérience dans le secteur de la restauration.\n\nAujourd’hui, j’accompagne plus de 40 restaurants et commerces dans la région, notamment Ba Fares, Doms Café, Indian Flavors, Louai’s et Gaston Gali.\n\nEst-ce que certaines de ces situations vous parlent ? ⬇️\n\n- Vous souhaitez attirer plus de clients, mais vous avez du mal à le faire régulièrement ?\n- Vous manquez de visibilité sur vos coûts et vos bénéfices réels ?\n- Votre présence en ligne est insuffisante alors que vos concurrents attirent l’attention ?\n- Vous perdez des clients à cause des longs temps d’attente, des erreurs de commande ou des mauvais avis Google ?\n- Vous passez trop de temps à gérer les opérations quotidiennes au lieu de développer votre activité ?\n\nJ’aimerais simplement vous accorder 5 minutes, gratuitement, pour vous montrer quelques opportunités concrètes d’améliorer votre restaurant. 📈\n\nNous accompagnons un nombre limité de nouveaux clients chaque mois. Si le sujet vous intéresse, autant en discuter rapidement ! \n\nNotre Google score? 5 ⭐⭐⭐⭐⭐\n\nAucune pression, aucun engagement. Si vous n’y voyez pas de valeur, safi, aucun souci ! 🤷\n\nAppelez-moi ou contactez-moi sur WhatsApp : 0660353741\n\nAmar Raduzzi\nCEO – Amplify Growth Studio\n\nP.s. \nNos clients site webs: \nhttps://bafares.pages.dev\nhttps://gastongali.pages.dev\nhttps://atelierbysam.pages.dev\nhttps://louais.ma/",
+  glovo: "Salam ! 👋\n\nJ’ai discuté avec votre équipe et on m’a dit que vous travaillez avec Glovo.\n\nContinuez à utiliser Glovo ! Mais continuer à payer 30 % de commission, c’est ABSURDE. Transformez les clients Glovo en VOS propres clients, avec 0 % de commission !\n\nVoici la stratégie : 🚀\n\n1️⃣ Glovo vous apporte de nouveaux clients.\n\n2️⃣ Nous créons votre propre site de commande en ligne pour que vos clients puissent vous trouver et commander directement.\n\n3️⃣ Vous ajoutez un flyer dans chaque commande Glovo, avec une offre de -30 % sur leur prochaine commande directement sur votre site (avec vos prix habituels en magasin).\n\n4️⃣ Le résultat ? Vous transformez les clients Glovo en clients directs. ZÉRO commission. Plus de contrôle. Plus de marge. 💰\n\nEt le meilleur ? Nous créons votre site web à partir de seulement 250 MAD 😅\n\nFranchement, qu’est-ce qui vous empêcherait de développer votre propre clientèle au lieu de payer des commissions indéfiniment ?\n\nNotre Google score? ⭐⭐⭐⭐⭐\n\n📲 Appelez-moi ou contactez-moi sur WhatsApp : 0660353741\n\nAmar Raduzzi\nCEO – Amplify Growth Studio"
 };
-const WA_DEF = { ...WA_TPL, site: WA_CFG.site };
-const TPL_F = [['appt_prop', 'Proposer un RDV (sans date)'], ['appt_date', 'Confirmer un RDV (date sans heure)'], ['appt_full', 'Confirmer un RDV (date et heure)'], ['info', 'Infos et exemples'], ['follow', 'Relancer l’intérêt'], ['site', 'Lien du site ou de la démo ({site})']];
-const applyTpl = rowsT => { Object.assign(WA_TPL, Object.fromEntries(Object.entries(WA_DEF).filter(([k]) => k !== 'site'))); WA_CFG.site = WA_DEF.site; (rowsT || []).forEach(x => { if (x.key === 'site') WA_CFG.site = x.body; else if (x.key in WA_TPL) WA_TPL[x.key] = x.body; }); };
+const WA_DEF = { ...WA_TPL };
+const TPL_F = [['boss', 'Manager + Boss'], ['glovo', 'Glovo message']];
+const applyTpl = rowsT => { Object.assign(WA_TPL, WA_DEF); (rowsT || []).forEach(x => { if (x.key in WA_TPL) WA_TPL[x.key] = x.body; }); };
 const isMobileMA = p => /^212[67]\d{8}$/.test(waNumber(p));
-function waBuild(kind, name, nc, tv0) {
-  const c = String(name || '').split(',')[0].trim();
-  const date = nc ? new Date(nc + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
-  const tv = nc ? (tv0 || '') : '', heure = tv ? tv.slice(0, 2).replace(/^0/, '') + 'h' + (tv.slice(3, 5) === '00' ? '' : tv.slice(3, 5)) : '';
-  const key = kind === 'appt' ? (date ? (heure ? 'appt_full' : 'appt_date') : 'appt_prop') : kind;
-  return WA_TPL[key].replace('{salut}', c ? 'Salam ' + c + ' !' : 'Salam !').replace('{date}', date).replace('{heure}', heure).replace('{site}', WA_CFG.site);
-}
-function waText(kind, f) { return waBuild(kind, f.contact_name?.value, f.next_contact.value, f.next_time?.value); }
+function waBuild(kind) { return WA_TPL[kind] || ''; }
+function waText(kind) { return waBuild(kind); }
 const WA_INTRO = "Bonjour, c’est l’équipe Amplify. Merci pour l’échange aujourd’hui !";
 
 const STATUS = {
@@ -1049,8 +1037,8 @@ $('#fuBox').addEventListener('change', async e => {
 });
 // ---- Modifier les messages WhatsApp (partagé via la table app_texts) ----
 $('#btnTpl').onclick = () => {
-  $('#tplFields').innerHTML = TPL_F.map(([k, t]) => `<label style="display:block;margin-top:8px"><div class="lbl">${t}</div>${k === 'site' ? `<input data-tf="${k}" style="width:100%">` : `<textarea data-tf="${k}" rows="6" style="width:100%"></textarea>`}</label>`).join('');
-  TPL_F.forEach(([k]) => { $('#tplFields').querySelector(`[data-tf="${k}"]`).value = k === 'site' ? WA_CFG.site : WA_TPL[k]; });
+  $('#tplFields').innerHTML = TPL_F.map(([k, t]) => `<label style="display:block;margin-top:8px"><div class="lbl">${t}</div><textarea data-tf="${k}" rows="12" style="width:100%"></textarea></label>`).join('');
+  TPL_F.forEach(([k]) => { $('#tplFields').querySelector(`[data-tf="${k}"]`).value = WA_TPL[k]; });
   $('#dlgTpl').showModal();
 };
 $('#btnTplCancel').onclick = () => $('#dlgTpl').close();
@@ -1058,7 +1046,6 @@ $('#btnTplReset').onclick = () => TPL_F.forEach(([k]) => { $('#tplFields').query
 $('#btnTplSave').onclick = async () => {
   const v = Object.fromEntries(TPL_F.map(([k]) => [k, $('#tplFields').querySelector(`[data-tf="${k}"]`).value.trim()]));
   if (TPL_F.some(([k]) => !v[k])) return toast('Aucun texte ne peut être vide.', 4000);
-  if (!v.appt_date.includes('{date}') || !v.appt_full.includes('{date}') || !v.appt_full.includes('{heure}')) return toast('Les messages de confirmation doivent contenir {date} (et {heure} pour celui avec l’heure).', 6000);
   try {
     for (const [k] of TPL_F) { if (v[k] === WA_DEF[k]) await store.tplReset(k); else await store.tplSave(k, v[k]); }
     applyTpl(await store.tplList()); $('#dlgTpl').close(); toast('Messages enregistrés.');
@@ -1089,23 +1076,27 @@ function waNumOpen(id) {
 }
 window.waNumOpen = waNumOpen;
 $('#waNumCancel').onclick = () => $('#dlgWaNum').close();
-$('#fWaNum').addEventListener('submit', async e => {
-  e.preventDefault();
+async function waNumStore(openWa) { // save the number; optionally go straight on to WhatsApp
   const r = rows.find(x => x.id === waNumId); if (!r) return;
   const v = $('#waNumInput').value.trim();
   if (!isMobileMA(v)) return toast('Numéro invalide : mobile marocain en 06…, 07… ou +212…', 5000);
-  try { await store.save({ id: r.id, name: r.name, phone: v }); await reload(); $('#dlgWaNum').close(); toast('Numéro enregistré.'); waPick(r.id); }
-  catch (err) { toast('Erreur : ' + err.message, 5000); }
-});
+  try {
+    await store.save({ id: r.id, name: r.name, phone: v }); await reload(); $('#dlgWaNum').close(); toast('Numéro enregistré.');
+    if (visitId === r.id && $('#dlgVisit').open) { $('#waTpl').hidden = false; $('#waNote').hidden = true; } // visit form: show the WhatsApp messages right away
+    if (openWa) waPick(r.id);
+  } catch (err) { toast('Erreur : ' + err.message, 5000); }
+}
+$('#fWaNum').addEventListener('submit', e => { e.preventDefault(); waNumStore(true); });
+$('#waNumOnly').onclick = () => waNumStore(false);
 $('#waAddNum').onclick = () => { if (visitId) waNumOpen(visitId); };
 $('#waPickBtns').addEventListener('click', e => {
   const b = e.target.closest('[data-wp]'); const r = rows.find(x => x.id === waPickId); if (!b || !r || !isMobileMA(r.phone)) return;
-  window.open('https://wa.me/' + waNumber(r.phone) + '?text=' + encodeURIComponent(waBuild(b.dataset.wp, '', r.next_contact, r.next_time)), '_blank');
+  window.open('https://wa.me/' + waNumber(r.phone) + '?text=' + encodeURIComponent(waBuild(b.dataset.wp)), '_blank');
   $('#dlgWaPick').close();
 });
 $('#waTpl').addEventListener('click', e => {
   const b = e.target.closest('[data-wa]'); const r = rows.find(x => x.id === visitId); if (!b || !r || !isMobileMA(r.phone)) return;
-  window.open('https://wa.me/' + waNumber(r.phone) + '?text=' + encodeURIComponent(waText(b.dataset.wa, $('#fVisit'))), '_blank');
+  window.open('https://wa.me/' + waNumber(r.phone) + '?text=' + encodeURIComponent(waText(b.dataset.wa)), '_blank');
 });
 $('#fVisit').addEventListener('submit', async e => {
   const f = e.target, r = rows.find(x => x.id === visitId); if (!r) return;
@@ -1926,6 +1917,7 @@ Object.assign(D, {'Point de départ':'Startpunt','Adresse ou quartier':'Adres of
 FRAG.push([/^(\d+) suivis en retard$/,'$1 acties te laat'],[/(\d+) visites · (\d+) conversations/,'$1 bezoeken · $2 gesprekken'],[/(\d+ %|—) des visites/,'$1 van de bezoeken'],[/(\d+ %|—) des restaurants visités/,'$1 van de bezochte restaurants'],[/^Définitions : .*$/s,'Definities: een gesprek is het resultaat “Met manager gesproken”, “Gesproken met baas”, “Intéressé”, “RDV pris” of “Pas intéressé”. Percentages delen door het aantal bezoeken; “klant geworden” deelt door het aantal verschillende restaurants dat in de periode is bezocht (huidige status). Een restaurant dat twee keer is bezocht telt als twee bezoeken, maar één keer als restaurant.'],[/^(\d+) visites$/,'$1 bezoeken'],[/^(\d+) conversations$/,'$1 gesprekken'],[/^(\d+) intéressés$/,'$1 geïnteresseerd'],[/^(\d+) RDV pris$/,'$1 afspraken gemaakt'],[/^(\d+) suivis terminés$/,'$1 acties afgerond'],[/^(\d+) suivis ouverts$/,'$1 openstaande acties'],[/position approximative/g,'positie bij benadering'],[/(\d+) positions trouvées, (\d+) approximatives\./,'$1 posities gevonden, $2 bij benadering.'],[/^Départ : (?=.)/,'Start: '],[/^Chercher les positions manquantes \((\d+)\)/,'Ontbrekende posities opzoeken ($1)'],[/(\d+) arrêts · /,'$1 stops · '],[/(\d+) positions trouvées, (\d+) introuvables\./,'$1 posities gevonden, $2 niet gevonden.'],[/Plus de restaurants ne correspondent pas aux filtres/,'Er zijn geen restaurants meer die aan de filters voldoen'],[/ \(certains n’ont pas encore de position\)/,' (sommige hebben nog geen positie)'],[/Essayez une autre région ou désactivez « nouveaux et fort potentiel »\./,'Probeer een andere regio of zet “alleen nieuwe en hoge potentie” uit.'],[/Aucun restaurant ne correspond\. Essayez une autre région, désactivez « nouveaux et fort potentiel »/,'Geen enkel restaurant past. Probeer een andere regio, zet “alleen nieuwe en hoge potentie” uit'],[/ ou cherchez les positions manquantes\./,' of zoek de ontbrekende posities op.'],[/Déplacez le repère D sur la carte, puis revenez sur Aujourd’hui\./,'Sleep de pin D op de kaart en ga dan terug naar Vandaag.']);
 Object.assign(D, {'Ce qui a été dit, ce qui l’intéresse, objections…':'Wat er gezegd is, waar ze interesse in hebben, bezwaren…','Ex. envoyer la démo, repasser jeudi':'Bijv. demo sturen, donderdag terugkomen','Parlé au patron':'Gesproken met baas','Suivi':'Opvolging','Pas de suivi':'Geen opvolging','Envoyer sur WhatsApp':'Stuur via WhatsApp','Itinéraire':'Navigeer','Je suis sur place : noter la visite tout de suite':'Ik sta er nu: bezoek meteen vastleggen'});
 Object.assign(D, {'Position':'Locatie','Détails':'Details','Numéro WhatsApp':'WhatsApp-nummer','Enregistrer et ouvrir WhatsApp':'Opslaan en WhatsApp openen','Ajouter un numéro WhatsApp':'WhatsApp-nummer toevoegen','Pas de numéro mobile valide : pas de modèles WhatsApp.':'Geen geldig mobiel nummer: geen WhatsApp-berichten.','Ce numéro est fixe ou non reconnu. Entre un numéro mobile : 06…, 07… ou +212…':'Dit nummer is een vast nummer of wordt niet herkend. Vul een mobiel nummer in: 06…, 07… of +212…','Pas encore de numéro pour ce restaurant. Entre un numéro mobile : 06…, 07… ou +212…':'Nog geen nummer voor dit restaurant. Vul een mobiel nummer in: 06…, 07… of +212…','Numéro enregistré.':'Nummer opgeslagen.','Numéro invalide : mobile marocain en 06…, 07… ou +212…':'Ongeldig nummer: Marokkaans mobiel nummer met 06…, 07… of +212…'});
+Object.assign(D, {'Numéro enregistré.':'Nummer opgeslagen.','Ces textes sont partagés avec toute l’équipe.':'Deze teksten worden met het hele team gedeeld.'});
 setLang(lang);
 showTab('today');
 
