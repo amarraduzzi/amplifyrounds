@@ -391,24 +391,29 @@ dialog .foot.stick{position:sticky;bottom:0;z-index:3;background:#fff;margin:0 -
       <label>Téléphone<input name="phone" type="tel" inputmode="tel" autocomplete="off" placeholder="06 12 34 56 78"></label>
     </div>
     <datalist id="districts"></datalist>
-    <label>Adresse<input name="address" placeholder="Rue, quartier"></label>
-    <label>Lien Google Maps (coordonnées automatiques)<input name="maps" placeholder="Collez le lien complet"></label>
-    <div class="two">
-      <label>Latitude<input name="lat" inputmode="decimal"></label>
-      <label>Longitude<input name="lng" inputmode="decimal"></label>
+    <div class="vsec"><b>Position</b>
+      <label>Adresse<input name="address" placeholder="Rue, quartier"></label>
+      <label>Lien Google Maps (coordonnées automatiques)<input name="maps" placeholder="Collez le lien complet"></label>
+      <div class="two">
+        <label>Latitude<input name="lat" inputmode="decimal"></label>
+        <label>Longitude<input name="lng" inputmode="decimal"></label>
+      </div>
+      <div class="chips" id="posBtns">
+        <button type="button" id="btnGeocode">Trouver via l’adresse</button>
+        <button type="button" id="btnPick">Placer sur la carte</button>
+        <button type="button" id="btnHere">Ma position</button>
+      </div>
     </div>
-    <div class="foot" style="justify-content:flex-start">
-      <button type="button" class="btn" id="btnGeocode">Trouver via l’adresse</button>
-      <button type="button" class="btn" id="btnPick">Placer sur la carte</button>
-      <button type="button" class="btn" id="btnHere">Ma position</button>
+    <label id="hereRow" class="vsec" style="display:flex;gap:10px;align-items:center;font-size:14px;color:var(--ink)"><input type="checkbox" id="hereNow" style="width:22px;height:22px;accent-color:var(--accent)"> Je suis sur place : noter la visite tout de suite</label>
+    <div class="vsec"><b>Détails</b>
+      <div><div class="lbl">Type</div><div class="chips" data-chip="kind"><button type="button" data-v="restaurant">Restaurant</button><button type="button" data-v="cafe">Café</button><button type="button" data-v="snack">Snack</button><button type="button" data-v="patisserie">Pâtisserie</button></div></div>
+      <div><div class="lbl">Site web</div><div class="chips" data-chip="website_status"><button type="button" data-v="unknown">Inconnu</button><button type="button" data-v="no">Pas de site</button><button type="button" data-v="yes">A un site</button></div></div>
+      <div class="two"><label>Note Google<input name="g_rating" inputmode="decimal" placeholder="4,5"></label><label>Nombre d’avis<input name="g_reviews" inputmode="numeric" placeholder="120"></label></div>
+      <div><div class="lbl">Environnement</div><div class="chips" data-chip="area"><button type="button" data-v="good">Quartier agréable</button><button type="button" data-v="ok">Moyen</button><button type="button" data-v="bad">Quartier difficile</button></div></div>
+      <label>Statut<select name="status"></select></label>
+      <div hidden><select name="kind"><option value="">—</option><option value="restaurant">Restaurant</option><option value="cafe">Café</option><option value="snack">Snack</option><option value="patisserie">Pâtisserie</option></select><select name="website_status"><option value="unknown">Inconnu</option><option value="no">Pas de site</option><option value="yes">A un site</option></select><select name="area"><option value="">—</option><option value="good">Quartier agréable</option><option value="ok">Moyen</option><option value="bad">Quartier difficile</option></select></div>
     </div>
-    <label id="hereRow" style="display:flex;gap:10px;align-items:center;font-size:14px;color:var(--ink)"><input type="checkbox" id="hereNow" style="width:22px;height:22px;accent-color:var(--accent)"> Je suis sur place : noter la visite tout de suite</label>
-    <div class="two"><label>Type<select name="kind"><option value="">—</option><option value="restaurant">Restaurant</option><option value="cafe">Café</option><option value="snack">Snack</option><option value="patisserie">Pâtisserie</option></select></label>
-<label>Site web<select name="website_status"><option value="unknown">Inconnu</option><option value="no">Pas de site</option><option value="yes">A un site</option></select></label></div>
-<div class="two"><label>Note Google<input name="g_rating" inputmode="decimal" placeholder="4,5"></label><label>Nombre d’avis<input name="g_reviews" inputmode="numeric" placeholder="120"></label></div>
-<label>Environnement<select name="area"><option value="">—</option><option value="good">Quartier agréable</option><option value="ok">Moyen</option><option value="bad">Quartier difficile</option></select></label>
-<label>Statut<select name="status"></select></label>
-    <div class="foot">
+    <div class="foot stick">
       <button type="button" class="btn danger" id="btnDelete" hidden>Supprimer</button>
       <button type="button" class="btn" id="btnEditCancel">Annuler</button>
       <button class="btn primary" value="ok">Enregistrer</button>
@@ -435,7 +440,7 @@ dialog .foot.stick{position:sticky;bottom:0;z-index:3;background:#fff;margin:0 -
         <button type="button" class="btn" data-wa="info">Infos et exemples</button>
         <button type="button" class="btn" data-wa="follow">Relancer l’intérêt</button>
       </div></div>
-      <div id="waNote" hidden style="font-size:13px;color:var(--mute)">Numéro fixe ou non reconnu : pas de modèles WhatsApp.</div>
+      <div id="waNote" hidden style="display:grid;gap:8px;font-size:13px;color:var(--mute)"><div>Pas de numéro mobile valide : pas de modèles WhatsApp.</div><button type="button" class="btn" id="waAddNum">Ajouter un numéro WhatsApp</button></div>
     </div>
     <div class="hist" id="visitHist"></div>
     <div id="fuBox" class="vsec"><b>Actions de suivi</b><div id="fuList"></div>
@@ -467,6 +472,10 @@ dialog .foot.stick{position:sticky;bottom:0;z-index:3;background:#fff;margin:0 -
 <p style="margin:0;color:var(--mute);font-size:14px">Ces textes sont partagés avec toute l’équipe. Variables : {salut} (Salam + prénom), {date}, {heure}, {site}. Les messages de confirmation doivent garder {date} (et {heure} pour celui avec l’heure).</p>
 <div id="tplFields"></div>
 <div class="foot"><button type="button" class="btn" id="btnTplReset">Textes d’origine</button><button type="button" class="btn" id="btnTplCancel">Annuler</button><button type="button" class="btn primary" id="btnTplSave">Enregistrer</button></div></form></dialog>
+<dialog id="dlgWaNum"><form method="dialog" id="fWaNum"><h2 id="waNumTitle">WhatsApp</h2>
+<div id="waNumNote" style="color:var(--mute);font-size:14px"></div>
+<label>Numéro WhatsApp<input id="waNumInput" type="tel" inputmode="tel" autocomplete="off" placeholder="06 12 34 56 78 · 07… · +212 6…"></label>
+<div class="foot stick"><button type="button" class="btn" id="waNumCancel">Annuler</button><button type="submit" class="btn primary" id="waNumSave">Enregistrer et ouvrir WhatsApp</button></div></form></dialog>
 <dialog id="dlgWaPick"><form method="dialog" id="fWaPick"><h2 id="waPickTitle">WhatsApp</h2>
 <div id="waPickSub" style="color:var(--mute);font-size:14px"></div>
 <div id="waPickBtns" style="display:grid;gap:8px">
@@ -828,7 +837,7 @@ function renderRoute() {
   $('#stops').innerHTML = (list.length ? `<li class="stop"><span class="num start">D</span><div><b>Départ</b></div><span></span></li>` : '') + list.map((r, i) => `
     <li class="stop"><span class="num">${route ? i + 1 : '·'}</span>
       <div><b>${esc(r.name)}</b><div class="leg">${esc(r.district || '')}${route && legs[i] ? (r.district ? ' · ' : '') + km(legs[i].distance) + ', ' + mins(legs[i].duration) : ''}</div></div>
-      <div class="acts"><button class="btn" onclick="navTo('${r.id}')">Itinéraire</button>${r.phone ? `<button class="btn" onclick="waPick('${r.id}')">WhatsApp</button>` : ''}<button class="btn" onclick="openVisit('${r.id}')">Visite</button></div>
+      <div class="acts"><button class="btn" onclick="navTo('${r.id}')">Itinéraire</button><button class="btn" onclick="waPick('${r.id}')">WhatsApp</button><button class="btn" onclick="openVisit('${r.id}')">Visite</button></div>
     </li>`).join('');
   if (route) {
     L.polyline(route.geometry, { color: '#1F5FBF', weight: 5, opacity: .85 }).addTo(routeLayer);
@@ -860,8 +869,14 @@ window.openEdit = (id, preName) => {
   if (!r && preName) f.name.value = preName;
   $('#hereRow').hidden = !!r; $('#hereNow').checked = !r && !!tour; // during a round: a new place is usually a walk-in
   if (!r && tour) hereFill(true);
-  $('#dlgEdit').showModal();
+  syncEditChips(); $('#dlgEdit').showModal(); f.scrollTop = 0;
 };
+function syncEditChips() { const f = $('#fEdit'); document.querySelectorAll('#fEdit [data-chip]').forEach(g => g.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === f[g.dataset.chip].value))); }
+$('#fEdit').addEventListener('click', e => {
+  const b = e.target.closest('[data-chip] button'); if (!b) return;
+  const k = b.parentElement.dataset.chip, sel = $('#fEdit')[k];
+  sel.value = b.classList.contains('on') && k !== 'website_status' ? '' : b.dataset.v; syncEditChips();
+});
 $('#btnAdd').onclick = () => openEdit(null);
 $('#btnEditCancel').onclick = () => $('#dlgEdit').close();
 $('#fEdit').maps.addEventListener('input', e => {
@@ -906,7 +921,7 @@ window.openVisit = async id => {
   f.status.innerHTML = Object.entries(STATUS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
   f.status.value = r.status; f.next_step.value = r.next_step || ''; f.next_contact.value = r.next_contact || ''; f.next_time.value = r.next_time || '';
   $('#visitTitle').textContent = r.name;
-  { const ok = !!r.phone && isMobileMA(r.phone); $('#waTpl').hidden = !ok; $('#waNote').hidden = !r.phone || ok; }
+  { const ok = !!r.phone && isMobileMA(r.phone); $('#waTpl').hidden = !ok; $('#waNote').hidden = ok; }
   $('#visitHist').innerHTML = ''; $('#visitMeta').innerHTML = '';
   $('#dlgVisit').showModal();
   $('#dlgVisit form').scrollTop = 0;
@@ -1054,14 +1069,35 @@ $('#btnVisitCancel').onclick = () => $('#dlgVisit').close();
 let waPickId = null;
 window.waPick = id => {
   const r = rows.find(x => x.id === id); if (!r) return;
-  if (!r.phone) return toast('Pas de numéro pour ce restaurant.');
-  waPickId = id; const ok = isMobileMA(r.phone);
+  if (!r.phone || !isMobileMA(r.phone)) return waNumOpen(id); // no usable mobile number yet: ask for it first
+  waPickId = id; const ok = true;
   $('#waPickTitle').textContent = r.name;
   $('#waPickSub').textContent = ok ? 'Choisis le message à envoyer :' : '';
   $('#waPickBtns').hidden = !ok; $('#waPickNote').hidden = ok;
   $('#dlgWaPick').showModal();
 };
 $('#waPickCancel').onclick = () => $('#dlgWaPick').close();
+// ---- Numéro WhatsApp : ajouter / corriger, puis ouvrir WhatsApp directement ----
+let waNumId = null;
+function waNumOpen(id) {
+  const r = rows.find(x => x.id === id); if (!r) return;
+  waNumId = id; $('#waNumTitle').textContent = r.name;
+  $('#waNumNote').textContent = r.phone ? 'Ce numéro est fixe ou non reconnu. Entre un numéro mobile : 06…, 07… ou +212…' : 'Pas encore de numéro pour ce restaurant. Entre un numéro mobile : 06…, 07… ou +212…';
+  $('#waNumInput').value = r.phone || '';
+  $('#dlgWaNum').showModal();
+  setTimeout(() => $('#waNumInput').focus(), 60);
+}
+window.waNumOpen = waNumOpen;
+$('#waNumCancel').onclick = () => $('#dlgWaNum').close();
+$('#fWaNum').addEventListener('submit', async e => {
+  e.preventDefault();
+  const r = rows.find(x => x.id === waNumId); if (!r) return;
+  const v = $('#waNumInput').value.trim();
+  if (!isMobileMA(v)) return toast('Numéro invalide : mobile marocain en 06…, 07… ou +212…', 5000);
+  try { await store.save({ id: r.id, name: r.name, phone: v }); await reload(); $('#dlgWaNum').close(); toast('Numéro enregistré.'); waPick(r.id); }
+  catch (err) { toast('Erreur : ' + err.message, 5000); }
+});
+$('#waAddNum').onclick = () => { if (visitId) waNumOpen(visitId); };
 $('#waPickBtns').addEventListener('click', e => {
   const b = e.target.closest('[data-wp]'); const r = rows.find(x => x.id === waPickId); if (!b || !r || !isMobileMA(r.phone)) return;
   window.open('https://wa.me/' + waNumber(r.phone) + '?text=' + encodeURIComponent(waBuild(b.dataset.wp, '', r.next_contact, r.next_time)), '_blank');
@@ -1512,7 +1548,7 @@ function fuSection() {
   const t = todayLocal(), srt = a => a.slice().sort((x, y) => x.due_date.localeCompare(y.due_date));
   const item = a => {
     const r = rows.find(x => x.id === a.restaurant_id); if (!r) return '';
-    return `<div class="fu-item" data-id="${a.id}" data-r="${r.id}"><div class="fu-info"><b>${esc(r.name)}</b><div class="leg ${a.due_date < t ? 'late' : ''}">${esc(FU_TYPES[a.type] || a.type)} · ${fmtD(a.due_date)}${a.note ? ' · ' + esc(a.note) : ''}</div></div><div class="fu-acts"><button class="btn go" data-fu2="visit" type="button">Visite</button><button class="btn" data-fu2="ics" type="button">Agenda</button>${r.phone ? '<button class="btn" data-fu2="wa" type="button">WhatsApp</button>' : '<span class="fu-gap" aria-hidden="true"></span>'}<button class="btn fu-done" data-fu2="done" type="button" aria-label="Terminer">✓</button></div></div>`;
+    return `<div class="fu-item" data-id="${a.id}" data-r="${r.id}"><div class="fu-info"><b>${esc(r.name)}</b><div class="leg ${a.due_date < t ? 'late' : ''}">${esc(FU_TYPES[a.type] || a.type)} · ${fmtD(a.due_date)}${a.note ? ' · ' + esc(a.note) : ''}</div></div><div class="fu-acts"><button class="btn go" data-fu2="visit" type="button">Visite</button><button class="btn" data-fu2="ics" type="button">Agenda</button><button class="btn" data-fu2="wa" type="button">WhatsApp</button><button class="btn fu-done" data-fu2="done" type="button" aria-label="Terminer">✓</button></div></div>`;
   };
   const grp = (title, arr, st) => arr.length ? `<div class="lbl" style="margin-top:8px;${st}">${title} (${arr.length})</div>` + srt(arr).slice(0, 8).map(item).join('') + (arr.length > 8 ? `<div class="leg">+${arr.length - 8}</div>` : '') : '';
   return `<section class="card"><b style="color:var(--ink)">Suivis</b>${grp('En retard', fus.filter(a => a.due_date < t), 'color:#C0392B;font-weight:700')}${grp('Aujourd’hui', fus.filter(a => a.due_date === t), '')}${grp('À venir', fus.filter(a => a.due_date > t), 'color:var(--mute)')}</section>`;
@@ -1542,7 +1578,7 @@ function tourSection() {
   const list = `<ol class="stops">${tour.ids.map(id => rows.find(r => r.id === id)).filter(Boolean).map((r, i) => {
     const done = tour.done.includes(r.id), sk = tour.skipped.includes(r.id), now = r.id === left[0], v = vt.get(r.id);
     const info = done ? (v ? [outL(v.outcome), v.contact_name].filter(Boolean).join(' · ') || tx('visité', 'bezocht') : tx('visité', 'bezocht')) : sk ? tx('passé', 'overgeslagen') : (r.district || '');
-    const acts = done ? `<button class="btn sm" data-tg="visit" data-id="${r.id}">${tx('Visite', 'Bezoek')}</button>${r.phone ? `<button class="btn sm" onclick="waPick('${r.id}')">WhatsApp</button>` : ''}`
+    const acts = done ? `<button class="btn sm" data-tg="visit" data-id="${r.id}">${tx('Visite', 'Bezoek')}</button><button class="btn sm" onclick="waPick('${r.id}')">WhatsApp</button>`
       : sk ? `<button class="btn sm" data-tg="unskip" data-id="${r.id}">${tx('Remettre', 'Terugzetten')}</button>`
       : `<button class="btn sm" data-tg="nav" data-id="${r.id}">${tx('Itinéraire', 'Navigeer')}</button><button class="btn sm go" data-tg="visit" data-id="${r.id}">${tx('Visite', 'Bezoek')}</button>${now ? '' : `<button class="btn sm" data-tg="first" data-id="${r.id}">${tx('Y aller maintenant', 'Nu hierheen')}</button>`}`;
     return `<li class="stop${done ? ' done' : sk ? ' skip' : now ? ' now' : ''}"><span class="num">${done ? '✓' : i + 1}</span><div><b>${esc(r.name)}</b><div class="leg">${esc(info)}</div><div class="acts">${acts}</div></div></li>`;
@@ -1561,7 +1597,7 @@ function visitListHtml(vs, group) { // one line per restaurant per day (latest v
     const tm = new Date(v.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     return `<div class="dvi" data-r="${r.id}"><div class="t"><div><b>${esc(r.name)}</b>${n > 1 ? ` <span class="n">(${n}×)</span>` : ''}<div class="n">${tm} · ${esc(stL(r.status))}${r.district ? ' · ' + esc(r.district) : ''}${v.contact_name ? ' · ' + esc(v.contact_name) : ''}${v.visited_by ? ' · ' + esc(v.visited_by) : ''}</div></div><span class="o ${POSO.includes(v.outcome) ? 'pos' : v.outcome === 'no' ? 'neg' : ''}">${esc(outL(v.outcome) || '—')}</span></div>
 ${v.note ? `<div class="n">${esc(v.note)}</div>` : ''}<div class="n ${fu && fu.due_date < t ? 'late' : ''}">${fu ? '→ ' + esc(fuL(fu.type)) + ' · ' + fmtD(fu.due_date) + (fu.note ? ' · ' + esc(fu.note) : '') : tx('Aucune action prévue', 'Geen actie gepland')}</div>
-<div class="a"><button class="btn" type="button" data-dv="wa" ${r.phone ? '' : 'disabled'}>WhatsApp</button><button class="btn" type="button" data-dv="call" ${r.phone ? '' : 'disabled'}>${tx('Appeler', 'Bellen')}</button><button class="btn" type="button" data-dv="cal">Agenda</button><button class="btn go" type="button" data-dv="visit">${tx('Ouvrir', 'Openen')}</button></div></div>`;
+<div class="a"><button class="btn" type="button" data-dv="wa">WhatsApp</button><button class="btn" type="button" data-dv="call" ${r.phone ? '' : 'disabled'}>${tx('Appeler', 'Bellen')}</button><button class="btn" type="button" data-dv="cal">Agenda</button><button class="btn go" type="button" data-dv="visit">${tx('Ouvrir', 'Openen')}</button></div></div>`;
   }).join('')).join('');
 }
 let dvDate = null, dvOpen = null;
@@ -1593,7 +1629,7 @@ function renderToday() {
     const v = r.g_reviews, late = due && r.next_contact < today;
     const why = due ? `Relance prévue le ${fmtD(r.next_contact)}${late ? ' (en retard)' : ''}${r.next_step ? ' : ' + esc(r.next_step) : ''}`
       : `Score ${leadScore(r) ?? '—'}${r.website_status === 'no' ? ' · pas de site' : ''}${v ? ' · ' + v + ' avis' : ''}${r.last_visit_at ? '' : ' · jamais visité'}`;
-    return `<li class="stop${due ? ' fu' : ''}${late ? ' late' : ''}"><span class="num">${i + 1}</span><div><b>${esc(r.name)}${extra ? `<span class="tag">${tx('ajouté', 'toegevoegd')}</span>` : ''}</b><div class="leg ${late ? 'late' : ''}">${esc(r.district || '')}${r.district ? ' · ' : ''}${why}${r.lat == null || isApprox(r) ? ' · ' + tx('position approximative', 'positie bij benadering') : ''}</div><div class="tip">${tipFor(r)}</div><div class="acts"><button class="btn sm" onclick="navTo('${r.id}')">${tx('Itinéraire', 'Navigeer')}</button>${r.phone ? `<button class="btn sm" onclick="waPick('${r.id}')">WhatsApp</button>` : ''}<button class="btn sm go" onclick="openVisit('${r.id}')">Visite</button><button class="btn sm" data-px="${r.id}" aria-label="${tx('Retirer', 'Weghalen')}">✕</button></div></div></li>`;
+    return `<li class="stop${due ? ' fu' : ''}${late ? ' late' : ''}"><span class="num">${i + 1}</span><div><b>${esc(r.name)}${extra ? `<span class="tag">${tx('ajouté', 'toegevoegd')}</span>` : ''}</b><div class="leg ${late ? 'late' : ''}">${esc(r.district || '')}${r.district ? ' · ' : ''}${why}${r.lat == null || isApprox(r) ? ' · ' + tx('position approximative', 'positie bij benadering') : ''}</div><div class="tip">${tipFor(r)}</div><div class="acts"><button class="btn sm" onclick="navTo('${r.id}')">${tx('Itinéraire', 'Navigeer')}</button><button class="btn sm" onclick="waPick('${r.id}')">WhatsApp</button><button class="btn sm go" onclick="openVisit('${r.id}')">Visite</button><button class="btn sm" data-px="${r.id}" aria-label="${tx('Retirer', 'Weghalen')}">✕</button></div></div></li>`;
   }).join('')}${day.loop ? `<li class="stop"><span class="num start">D</span><div><b>${tx('Retour au départ', 'Terug naar start')}</b></div></li>` : ''}</ol>${P.items.length < day.n ? `<div class="empty">Plus de restaurants ne correspondent pas aux filtres${missing ? ' (certains n’ont pas encore de position)' : ''}. ${tx('Agrandis le rayon, change le départ ou choisis une région.', 'Vergroot de straal, verander je start of kies een regio.')}</div>` : ''}`
   : `<div class="empty">${rows.length ? tx('Aucun restaurant dans ce rayon. Agrandis le rayon, change le départ ou désactive « nouveaux et fort potentiel ».', 'Geen restaurants binnen deze straal. Vergroot de straal, verander je start of zet “alleen nieuwe en hoge potentie” uit.') + (missing ? ' ' + tx('Ou cherche les positions manquantes.', 'Of zoek de ontbrekende posities op.') : '') : 'Ajoutez des restaurants avec une position (liste, import ou recherche en ligne) pour recevoir un conseil.'}</div>`;
   el.innerHTML = `${strip}
@@ -1889,6 +1925,7 @@ Object.assign(D, {'Adresse introuvable. Essayez un quartier ou « Déplacer sur 
 Object.assign(D, {'Point de départ':'Startpunt','Adresse ou quartier':'Adres of wijk','Chercher':'Zoeken','Région':'Regio','Peu importe, le plus proche du départ':'Maakt niet uit, dichtst bij mijn start','Nombre d’arrêts':'Aantal stops','Déplacement':'Verplaatsing','À pied':'Te voet','En voiture':'Met de auto','Seulement nouveaux et fort potentiel':'Alleen nieuwe en hoge potentie','Inclure les relances':'Opvolgingen meenemen','Déplacer sur la carte':'Verplaats op de kaart','Ouvrir dans Google Maps':'Openen in Google Maps','Départ : repère sur la carte (Agdal par défaut)':'Start: pin op de kaart (standaard Agdal)'});
 FRAG.push([/^(\d+) suivis en retard$/,'$1 acties te laat'],[/(\d+) visites · (\d+) conversations/,'$1 bezoeken · $2 gesprekken'],[/(\d+ %|—) des visites/,'$1 van de bezoeken'],[/(\d+ %|—) des restaurants visités/,'$1 van de bezochte restaurants'],[/^Définitions : .*$/s,'Definities: een gesprek is het resultaat “Met manager gesproken”, “Gesproken met baas”, “Intéressé”, “RDV pris” of “Pas intéressé”. Percentages delen door het aantal bezoeken; “klant geworden” deelt door het aantal verschillende restaurants dat in de periode is bezocht (huidige status). Een restaurant dat twee keer is bezocht telt als twee bezoeken, maar één keer als restaurant.'],[/^(\d+) visites$/,'$1 bezoeken'],[/^(\d+) conversations$/,'$1 gesprekken'],[/^(\d+) intéressés$/,'$1 geïnteresseerd'],[/^(\d+) RDV pris$/,'$1 afspraken gemaakt'],[/^(\d+) suivis terminés$/,'$1 acties afgerond'],[/^(\d+) suivis ouverts$/,'$1 openstaande acties'],[/position approximative/g,'positie bij benadering'],[/(\d+) positions trouvées, (\d+) approximatives\./,'$1 posities gevonden, $2 bij benadering.'],[/^Départ : (?=.)/,'Start: '],[/^Chercher les positions manquantes \((\d+)\)/,'Ontbrekende posities opzoeken ($1)'],[/(\d+) arrêts · /,'$1 stops · '],[/(\d+) positions trouvées, (\d+) introuvables\./,'$1 posities gevonden, $2 niet gevonden.'],[/Plus de restaurants ne correspondent pas aux filtres/,'Er zijn geen restaurants meer die aan de filters voldoen'],[/ \(certains n’ont pas encore de position\)/,' (sommige hebben nog geen positie)'],[/Essayez une autre région ou désactivez « nouveaux et fort potentiel »\./,'Probeer een andere regio of zet “alleen nieuwe en hoge potentie” uit.'],[/Aucun restaurant ne correspond\. Essayez une autre région, désactivez « nouveaux et fort potentiel »/,'Geen enkel restaurant past. Probeer een andere regio, zet “alleen nieuwe en hoge potentie” uit'],[/ ou cherchez les positions manquantes\./,' of zoek de ontbrekende posities op.'],[/Déplacez le repère D sur la carte, puis revenez sur Aujourd’hui\./,'Sleep de pin D op de kaart en ga dan terug naar Vandaag.']);
 Object.assign(D, {'Ce qui a été dit, ce qui l’intéresse, objections…':'Wat er gezegd is, waar ze interesse in hebben, bezwaren…','Ex. envoyer la démo, repasser jeudi':'Bijv. demo sturen, donderdag terugkomen','Parlé au patron':'Gesproken met baas','Suivi':'Opvolging','Pas de suivi':'Geen opvolging','Envoyer sur WhatsApp':'Stuur via WhatsApp','Itinéraire':'Navigeer','Je suis sur place : noter la visite tout de suite':'Ik sta er nu: bezoek meteen vastleggen'});
+Object.assign(D, {'Position':'Locatie','Détails':'Details','Numéro WhatsApp':'WhatsApp-nummer','Enregistrer et ouvrir WhatsApp':'Opslaan en WhatsApp openen','Ajouter un numéro WhatsApp':'WhatsApp-nummer toevoegen','Pas de numéro mobile valide : pas de modèles WhatsApp.':'Geen geldig mobiel nummer: geen WhatsApp-berichten.','Ce numéro est fixe ou non reconnu. Entre un numéro mobile : 06…, 07… ou +212…':'Dit nummer is een vast nummer of wordt niet herkend. Vul een mobiel nummer in: 06…, 07… of +212…','Pas encore de numéro pour ce restaurant. Entre un numéro mobile : 06…, 07… ou +212…':'Nog geen nummer voor dit restaurant. Vul een mobiel nummer in: 06…, 07… of +212…','Numéro enregistré.':'Nummer opgeslagen.','Numéro invalide : mobile marocain en 06…, 07… ou +212…':'Ongeldig nummer: Marokkaans mobiel nummer met 06…, 07… of +212…'});
 setLang(lang);
 showTab('today');
 
