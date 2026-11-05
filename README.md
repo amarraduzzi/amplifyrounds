@@ -102,3 +102,13 @@ No SQL needed. The 3 old WhatsApp templates are replaced by 2 fixed messages: "M
 ## Update 29: nummer alleen opslaan
 
 No SQL needed. The "WhatsApp-nummer" window now has three buttons: Annuleren, Opslaan (saves the number and closes) and Opslaan en WhatsApp openen.
+
+## Update 30: sectoren (Horeca, Pressing, Salon)
+
+No SQL needed (uses the existing `kind` column: 'pressing' or 'salon'; everything else is Horeca).
+- A bar under the header switches between Horeca (default, works exactly as before), Pressing, Salon and Tout. Each view only shows its own businesses: list, map, Vandaag plan, follow-ups, day list and figures.
+- Type / secteur chips in the edit form; a new business added in the Pressing or Salon view gets that sector.
+- "Zoeken online" in the zone searches pressings and laundries, or hair and beauty salons, depending on the view.
+- WhatsApp: Horeca keeps Manager + Boss and Glovo message; Pressing and Salon each get their own message (editable in WhatsApp-berichten).
+- The "only new and high potential" filter applies to Horeca only, since the score is built for restaurants.
+- In "Tout", pressings have a blue ring on the map and salons a pink one, with a label in the lists.

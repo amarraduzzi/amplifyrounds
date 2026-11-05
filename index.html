@@ -311,6 +311,15 @@ dialog .foot.stick{position:sticky;bottom:0;z-index:3;background:#fff;margin:0 -
 .dvi .a .btn{min-height:40px;padding:0 4px;border-radius:10px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .dvi .a .btn.go{border-color:var(--accent);color:var(--accent);font-weight:600}
 #today details.card>summary{cursor:pointer;min-height:28px}
+/* ===== Update 30: sectoren ===== */
+.sect{order:3;flex:1 1 100%;display:flex;border:1px solid #ffffff55;border-radius:999px;overflow:hidden}
+.sect[hidden]{display:none}
+.sect button{flex:1;border:0;border-radius:0;background:transparent;color:#fff;min-height:38px;padding:0 6px;font-weight:600;font-size:14px}
+.sect button.on{background:#fff;color:var(--ink)}
+.sect button.on[data-s=pressing]{background:#7FB3E8;color:var(--ink)}
+.sect button.on[data-s=salon]{background:#E8A0C8;color:var(--ink)}
+.stag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;margin-left:6px;vertical-align:middle;background:#DCEBFA;color:#1E4E86}
+.stag.salon{background:#F8E1EE;color:#8A2D60}
 </style>
 </head>
 <body>
@@ -322,6 +331,7 @@ dialog .foot.stick{position:sticky;bottom:0;z-index:3;background:#fff;margin:0 -
       <button id="btnImport">Importer</button>
       <button id="btnAdd" class="solid">+ Ajouter</button>
       <button id="btnLogout" hidden>Sortir</button>
+      <div class="sect" id="sectBar" role="group" aria-label="Secteur" hidden><button type="button" data-s="horeca">Horeca</button><button type="button" data-s="pressing">Pressing</button><button type="button" data-s="salon">Salon</button><button type="button" data-s="all">Tout</button></div>
     </header>
     <div class="tabs" role="tablist">
       <button role="tab" id="tabToday" aria-selected="true"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M8 3v4M16 3v4M8.5 13l2.5 2.5 4.5-5"/></svg></span><span class="lb">Aujourd’hui</span></button>
@@ -406,12 +416,12 @@ dialog .foot.stick{position:sticky;bottom:0;z-index:3;background:#fff;margin:0 -
     </div>
     <label id="hereRow" class="vsec" style="display:flex;gap:10px;align-items:center;font-size:14px;color:var(--ink)"><input type="checkbox" id="hereNow" style="width:22px;height:22px;accent-color:var(--accent)"> Je suis sur place : noter la visite tout de suite</label>
     <div class="vsec"><b>Détails</b>
-      <div><div class="lbl">Type</div><div class="chips" data-chip="kind"><button type="button" data-v="restaurant">Restaurant</button><button type="button" data-v="cafe">Café</button><button type="button" data-v="snack">Snack</button><button type="button" data-v="patisserie">Pâtisserie</button></div></div>
+      <div><div class="lbl">Type / secteur</div><div class="chips" data-chip="kind"><button type="button" data-v="restaurant">Restaurant</button><button type="button" data-v="cafe">Café</button><button type="button" data-v="snack">Snack</button><button type="button" data-v="patisserie">Pâtisserie</button><button type="button" data-v="pressing">Pressing</button><button type="button" data-v="salon">Salon</button></div></div>
       <div><div class="lbl">Site web</div><div class="chips" data-chip="website_status"><button type="button" data-v="unknown">Inconnu</button><button type="button" data-v="no">Pas de site</button><button type="button" data-v="yes">A un site</button></div></div>
       <div class="two"><label>Note Google<input name="g_rating" inputmode="decimal" placeholder="4,5"></label><label>Nombre d’avis<input name="g_reviews" inputmode="numeric" placeholder="120"></label></div>
       <div><div class="lbl">Environnement</div><div class="chips" data-chip="area"><button type="button" data-v="good">Quartier agréable</button><button type="button" data-v="ok">Moyen</button><button type="button" data-v="bad">Quartier difficile</button></div></div>
       <label>Statut<select name="status"></select></label>
-      <div hidden><select name="kind"><option value="">—</option><option value="restaurant">Restaurant</option><option value="cafe">Café</option><option value="snack">Snack</option><option value="patisserie">Pâtisserie</option></select><select name="website_status"><option value="unknown">Inconnu</option><option value="no">Pas de site</option><option value="yes">A un site</option></select><select name="area"><option value="">—</option><option value="good">Quartier agréable</option><option value="ok">Moyen</option><option value="bad">Quartier difficile</option></select></div>
+      <div hidden><select name="kind"><option value="">—</option><option value="restaurant">Restaurant</option><option value="cafe">Café</option><option value="snack">Snack</option><option value="patisserie">Pâtisserie</option><option value="pressing">Pressing</option><option value="salon">Salon</option></select><select name="website_status"><option value="unknown">Inconnu</option><option value="no">Pas de site</option><option value="yes">A un site</option></select><select name="area"><option value="">—</option><option value="good">Quartier agréable</option><option value="ok">Moyen</option><option value="bad">Quartier difficile</option></select></div>
     </div>
     <div class="foot stick">
       <button type="button" class="btn danger" id="btnDelete" hidden>Supprimer</button>
@@ -435,7 +445,7 @@ dialog .foot.stick{position:sticky;bottom:0;z-index:3;background:#fff;margin:0 -
       <div class="two"><label>Prochain contact<input name="next_contact" type="date"></label><label>Heure du RDV (facultatif)<input name="next_time" type="time"></label></div>
       <div class="two"><label>Type d’action<select name="fu_type"><option value="revisit">Repasser</option><option value="call">Appeler</option><option value="wa">WhatsApp à envoyer</option><option value="demo">Faire une démo</option><option value="confirm">Confirmer le RDV</option><option value="info">Envoyer des infos</option></select></label><label>Statut après visite<select name="status"></select></label></div>
       <label>Prochaine étape<input name="next_step" placeholder="Ex. envoyer la démo, repasser jeudi" autocomplete="off"></label>
-      <div id="waTpl" hidden><div class="lbl">Envoyer sur WhatsApp</div><div style="display:grid;gap:8px">
+      <div id="waTpl" hidden><div class="lbl">Envoyer sur WhatsApp</div><div id="waTplBtns" style="display:grid;gap:8px">
         <button type="button" class="btn" data-wa="boss">Manager + Boss</button>
         <button type="button" class="btn" data-wa="glovo">Glovo message</button>
       </div></div>
@@ -507,10 +517,14 @@ const RABAT = [34.0209, -6.8416];
 // ---- Modèles WhatsApp : 2 messages fixes (modifiables pour toute l’équipe via « Messages WhatsApp ») ----
 const WA_TPL = {
   boss: "Salam ! M3ak Amar,\n\nLe gars qui va vous faciliter la vie. 😁 Vous m’avez dit que vous transmettriez mes informations au propriétaire. Mais soyons honnêtes… qu’est-ce que vous y gagnez ?\n\nVoici ce que je vous propose : si le propriétaire me contacte et que nous finissons par collaborer, je vous offrirai personnellement une commission d’apporteur d’affaires.\n\nEn plus, avec mes 20+ ans d’expérience dans la restauration, je vous partagerai gratuitement 3 conseils pratiques pour vous faciliter considérablement le travail au quotidien.\n\nTout ce que je vous demande en échange, c’est de transférer le message ci-dessous à votre patron.\n\nMarché conclu ? 🤝\n\nSalam,\n\nJe suis passé dans votre restaurant et j’ai remarqué quelques points qui méritent votre attention… 🤔\n\nJe m’appelle Amar, entrepreneur néerlandais avec plus de 20 ans d’expérience dans le secteur de la restauration.\n\nAujourd’hui, j’accompagne plus de 40 restaurants et commerces dans la région, notamment Ba Fares, Doms Café, Indian Flavors, Louai’s et Gaston Gali.\n\nEst-ce que certaines de ces situations vous parlent ? ⬇️\n\n- Vous souhaitez attirer plus de clients, mais vous avez du mal à le faire régulièrement ?\n- Vous manquez de visibilité sur vos coûts et vos bénéfices réels ?\n- Votre présence en ligne est insuffisante alors que vos concurrents attirent l’attention ?\n- Vous perdez des clients à cause des longs temps d’attente, des erreurs de commande ou des mauvais avis Google ?\n- Vous passez trop de temps à gérer les opérations quotidiennes au lieu de développer votre activité ?\n\nJ’aimerais simplement vous accorder 5 minutes, gratuitement, pour vous montrer quelques opportunités concrètes d’améliorer votre restaurant. 📈\n\nNous accompagnons un nombre limité de nouveaux clients chaque mois. Si le sujet vous intéresse, autant en discuter rapidement ! \n\nNotre Google score? 5 ⭐⭐⭐⭐⭐\n\nAucune pression, aucun engagement. Si vous n’y voyez pas de valeur, safi, aucun souci ! 🤷\n\nAppelez-moi ou contactez-moi sur WhatsApp : 0660353741\n\nAmar Raduzzi\nCEO – Amplify Growth Studio\n\nP.s. \nNos clients site webs: \nhttps://bafares.pages.dev\nhttps://gastongali.pages.dev\nhttps://atelierbysam.pages.dev\nhttps://louais.ma/",
+  pressing: "Salam ! 👋\n\nJe suis passé devant votre pressing aujourd’hui. Petite question : combien de vêtements restent chez vous des semaines sans être récupérés ? Et combien de clients appellent pour demander « c’est prêt ? » 🤔\n\nAvec Amplify Pressing, c’est réglé :\n\n1️⃣ Chaque dépôt reçoit un ticket avec QR code : le client suit sa commande lui-même.\n\n2️⃣ Vêtements prêts ? Le client reçoit un WhatsApp en un clic.\n\n3️⃣ Taches et dégâts photographiés au dépôt : fini les discussions au comptoir.\n\n4️⃣ Les vêtements non récupérés sont signalés automatiquement.\n\n5️⃣ Collecte et livraison à domicile organisées dans l’application.\n\n6️⃣ Vous voyez chaque dépôt, chaque paiement et chaque fermeture de caisse, même à distance. 💰\n\nJ’aimerais vous le montrer en 5 minutes, gratuitement. Aucune pression, aucun engagement. Si vous n’y voyez pas de valeur, safi, aucun souci ! 🤷\n\nNotre Google score? ⭐⭐⭐⭐⭐\n\n📲 Appelez-moi ou contactez-moi sur WhatsApp : 0660353741\n\nAmar Raduzzi\nCEO – Amplify Growth Studio",
+  salon: "Salam ! 👋\n\nJe suis passé devant votre salon aujourd’hui. Est-ce que certaines de ces situations vous parlent ? ⬇️\n\n- Des clientes qui réservent et ne viennent pas ?\n- Le téléphone qui sonne pendant que vous travaillez ?\n- Des clientes satisfaites qui ne laissent jamais d’avis Google ?\n- Les commissions de l’équipe calculées à la main en fin de mois ?\n\nAvec Amplify Salon :\n\n1️⃣ Vos clientes réservent en ligne, 24h/24, sans vous appeler.\n\n2️⃣ Rappel WhatsApp avant chaque rendez-vous, la cliente confirme en un clic.\n\n3️⃣ Fidélité, forfaits et cartes cadeaux pour faire revenir vos clientes.\n\n4️⃣ Après chaque visite, la cliente est invitée à laisser un avis Google.\n\n5️⃣ Caisse, produits et commissions de chaque coiffeuse calculées automatiquement. 💰\n\nJ’aimerais vous le montrer en 5 minutes, gratuitement. Aucune pression, aucun engagement. Si vous n’y voyez pas de valeur, safi, aucun souci ! 🤷\n\nNotre Google score? ⭐⭐⭐⭐⭐\n\n📲 Appelez-moi ou contactez-moi sur WhatsApp : 0660353741\n\nAmar Raduzzi\nCEO – Amplify Growth Studio",
   glovo: "Salam ! 👋\n\nJ’ai discuté avec votre équipe et on m’a dit que vous travaillez avec Glovo.\n\nContinuez à utiliser Glovo ! Mais continuer à payer 30 % de commission, c’est ABSURDE. Transformez les clients Glovo en VOS propres clients, avec 0 % de commission !\n\nVoici la stratégie : 🚀\n\n1️⃣ Glovo vous apporte de nouveaux clients.\n\n2️⃣ Nous créons votre propre site de commande en ligne pour que vos clients puissent vous trouver et commander directement.\n\n3️⃣ Vous ajoutez un flyer dans chaque commande Glovo, avec une offre de -30 % sur leur prochaine commande directement sur votre site (avec vos prix habituels en magasin).\n\n4️⃣ Le résultat ? Vous transformez les clients Glovo en clients directs. ZÉRO commission. Plus de contrôle. Plus de marge. 💰\n\nEt le meilleur ? Nous créons votre site web à partir de seulement 250 MAD 😅\n\nFranchement, qu’est-ce qui vous empêcherait de développer votre propre clientèle au lieu de payer des commissions indéfiniment ?\n\nNotre Google score? ⭐⭐⭐⭐⭐\n\n📲 Appelez-moi ou contactez-moi sur WhatsApp : 0660353741\n\nAmar Raduzzi\nCEO – Amplify Growth Studio"
 };
 const WA_DEF = { ...WA_TPL };
-const TPL_F = [['boss', 'Manager + Boss'], ['glovo', 'Glovo message']];
+const TPL_F = [['boss', 'Manager + Boss'], ['glovo', 'Glovo message'], ['pressing', 'Pressing'], ['salon', 'Salon']];
+const WA_SECT = { horeca: ['boss', 'glovo'], pressing: ['pressing'], salon: ['salon'] }; // which messages each sector gets
+const waBtns = (r, attr) => WA_SECT[sectorOf(r)].map(k => `<button type="button" class="btn" data-${attr}="${k}">${esc(TPL_F.find(x => x[0] === k)[1])}</button>`).join('');
 const applyTpl = rowsT => { Object.assign(WA_TPL, WA_DEF); (rowsT || []).forEach(x => { if (x.key in WA_TPL) WA_TPL[x.key] = x.body; }); };
 const isMobileMA = p => /^212[67]\d{8}$/.test(waNumber(p));
 function waBuild(kind) { return WA_TPL[kind] || ''; }
@@ -701,7 +715,25 @@ const store = {
 };
 
 // ====== State ======
-let rows = [], fus = [], visCache = [];
+let rows = [], fus = [], visCache = [], allRows = [];
+// ---- Secteurs : Horeca (par défaut, comme avant), Pressing, Salon. Chaque secteur est une vue séparée. ----
+const SECT_L = { horeca: 'Horeca', pressing: 'Pressing', salon: 'Salon', all: 'Tout' };
+const sectorOf = r => r && (r.kind === 'pressing' || r.kind === 'salon') ? r.kind : 'horeca';
+let sector = ['horeca', 'pressing', 'salon', 'all'].includes(localStorage.getItem('at_sector')) ? localStorage.getItem('at_sector') : 'horeca';
+const inSector = r => sector === 'all' || sectorOf(r) === sector;
+const sTag = r => sector === 'all' && sectorOf(r) !== 'horeca' ? `<span class="stag ${sectorOf(r)}">${SECT_L[sectorOf(r)]}</span>` : '';
+function paintSector() {
+  const bar = $('#sectBar'); bar.hidden = false;
+  bar.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.s === sector));
+  const lb = $('#tabList .lb'); if (lb) lb.textContent = sector === 'horeca' ? 'Restaurants' : tx('Commerces', 'Zaken');
+  const ba = $('#btnArea'); if (ba) ba.textContent = sector === 'pressing' ? tx('Pressings et laveries de la zone', 'Pressings en wasserettes in de zone') : sector === 'salon' ? tx('Salons de coiffure et de beauté de la zone', 'Kappers en schoonheidssalons in de zone') : tx('Restaurants, cafés et pâtisseries de la zone', D['Restaurants, cafés et pâtisseries de la zone'] || 'Restaurants, cafés et pâtisseries de la zone');
+}
+$('#sectBar').addEventListener('click', async e => {
+  const b = e.target.closest('[data-s]'); if (!b || b.dataset.s === sector) return;
+  sector = b.dataset.s; localStorage.setItem('at_sector', sector);
+  await reload(); if (!$('#paneStats').hidden) renderStats();
+  toast(tx('Secteur : ', 'Sector: ') + SECT_L[sector]);
+});
 let selected = new Set(JSON.parse(localStorage.getItem('at_sel') || '[]'));
 let start = JSON.parse(localStorage.getItem('at_start') || 'null') || { ...DEFAULT_START };
 let route = null;              // { order:[rows], geometry:[[lat,lng]], distance, duration, estimated }
@@ -746,8 +778,9 @@ function renderMarkers() {
   markerLayer.clearLayers();
   rows.filter(r => r.lat != null && r.lng != null).forEach(r => {
     const sel = selected.has(r.id), c = STATUS[r.status]?.color || '#666';
-    const m = L.circleMarker([r.lat, r.lng], { radius: sel ? 12 : 9, color: sel ? '#14212B' : '#fff', weight: sel ? 4 : 2, fillColor: c, fillOpacity: .95 });
-    m.bindPopup(() => `<div class="pop"><b>${esc(r.name)}</b><br><span style="color:#5E6E7A">${esc(STATUS[r.status]?.label)}${r.district ? ' · ' + esc(r.district) : ''}</span><br>
+    const so = sectorOf(r), ring = so === 'pressing' ? '#2F6FB3' : so === 'salon' ? '#B3477F' : '#fff';
+    const m = L.circleMarker([r.lat, r.lng], { radius: sel ? 12 : 9, color: sel ? '#14212B' : ring, weight: sel ? 4 : so === 'horeca' ? 2 : 3, fillColor: c, fillOpacity: .95 });
+    m.bindPopup(() => `<div class="pop"><b>${esc(r.name)}</b>${sTag(r)}<br><span style="color:#5E6E7A">${esc(STATUS[r.status]?.label)}${r.district ? ' · ' + esc(r.district) : ''}</span><br>
       <button class="btn" onclick="toggleStop('${r.id}')">${selected.has(r.id) ? 'Retirer de la tournée' : 'Ajouter à la tournée'}</button>
       <button class="btn" onclick="openVisit('${r.id}')">Visite</button>
       <button class="btn" onclick="openEdit('${r.id}')">Modifier</button></div>`);
@@ -800,7 +833,7 @@ function renderList() {
     return `<div class="row">
       <span class="dot" style="background:${STATUS[r.status]?.color}" title="${esc(STATUS[r.status]?.label)}"></span>
       <div>
-        <button class="name" onclick="focusRow('${r.id}')">${esc(r.name)}</button>${leadScore(r) != null ? `<button class="score ${leadScore(r) >= 70 ? 'hi' : leadScore(r) >= 50 ? 'mid' : ''}" onclick="showWhy('${r.id}')" title="Pourquoi ce score ?">${leadScore(r)}</button>` : ''}
+        <button class="name" onclick="focusRow('${r.id}')">${esc(r.name)}${sTag(r)}</button>${leadScore(r) != null ? `<button class="score ${leadScore(r) >= 70 ? 'hi' : leadScore(r) >= 50 ? 'mid' : ''}" onclick="showWhy('${r.id}')" title="Pourquoi ce score ?">${leadScore(r)}</button>` : ''}
         <div class="meta">${esc(STATUS[r.status]?.label)}${r.district ? ' · ' + esc(r.district) : ''}${noPos ? ' · sans position' : isApprox(r) ? ' · position approximative' : ''}${r.last_visit_at ? ' · visité ' + fmtD(r.last_visit_at) : ''}</div>
         ${r.next_step ? `<div class="next ${due ? 'due' : ''}">${due ? 'À relancer : ' : ''}${esc(r.next_step)}</div>` : ''}
       </div>
@@ -851,10 +884,12 @@ window.openEdit = (id, preName) => {
   const f = $('#fEdit'); f.reset(); editingId = id || null;
   f.status.innerHTML = Object.entries(STATUS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
   const r = id ? rows.find(x => x.id === id) : null;
-  $('#editTitle').textContent = r ? 'Modifier le restaurant' : 'Nouveau restaurant';
+  const sx = r ? sectorOf(r) : sector;
+  $('#editTitle').textContent = sx === 'horeca' || sx === 'all' ? (r ? 'Modifier le restaurant' : 'Nouveau restaurant') : (r ? tx('Modifier le commerce', 'Zaak bewerken') : tx('Nouveau commerce', 'Nieuwe zaak') + ' · ' + SECT_L[sx]);
   $('#btnDelete').hidden = !r;
   ['name', 'district', 'address', 'phone', 'lat', 'lng', 'status', 'kind', 'g_rating', 'g_reviews', 'area', 'website_status'].forEach(k => f[k].value = r?.[k] ?? (k === 'status' ? 'new' : k === 'website_status' ? 'unknown' : ''));
   if (!r && preName) f.name.value = preName;
+  if (!r && (sector === 'pressing' || sector === 'salon')) f.kind.value = sector; // new business in the sector you are looking at
   $('#hereRow').hidden = !!r; $('#hereNow').checked = !r && !!tour; // during a round: a new place is usually a walk-in
   if (!r && tour) hereFill(true);
   syncEditChips(); $('#dlgEdit').showModal(); f.scrollTop = 0;
@@ -894,7 +929,13 @@ $('#fEdit').addEventListener('submit', async e => {
     phone: f.phone.value.trim() || null, lat: num(f.lat.value), lng: num(f.lng.value), status: f.status.value,
  kind: f.kind.value || null, website_status: f.website_status.value, g_rating: num(f.g_rating.value), g_reviews: num(f.g_reviews.value) == null ? null : Math.round(num(f.g_reviews.value)), area: f.area.value || null };
   const visitNow = !editingId && $('#hereNow').checked;
-  try { await store.save(r); await reload(); toast('Enregistré.'); if (visitNow) openVisit(r.id); } catch (err) { toast('Erreur : ' + err.message, 5000); }
+  try {
+    await store.save(r);
+    if (!inSector(r) && visitNow) { sector = sectorOf(r); localStorage.setItem('at_sector', sector); } // standing there: switch to its sector so the visit can be logged
+    await reload();
+    toast(inSector(r) ? 'Enregistré.' : tx('Enregistré dans ', 'Opgeslagen onder ') + SECT_L[sectorOf(r)] + tx('. Choisis-le en haut pour le voir.', '. Kies dat bovenaan om het te zien.'), inSector(r) ? 2500 : 5000);
+    if (visitNow) openVisit(r.id);
+  } catch (err) { toast('Erreur : ' + err.message, 5000); }
 });
 $('#btnDelete').onclick = async () => {
   if (!editingId || !confirm('Supprimer ce restaurant et son historique ?')) return;
@@ -908,7 +949,7 @@ window.openVisit = async id => {
   visitId = id; const f = $('#fVisit'); f.reset(); document.querySelectorAll('#chips button, #dates button').forEach(x => x.classList.remove('on'));
   f.status.innerHTML = Object.entries(STATUS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
   f.status.value = r.status; f.next_step.value = r.next_step || ''; f.next_contact.value = r.next_contact || ''; f.next_time.value = r.next_time || '';
-  $('#visitTitle').textContent = r.name;
+  $('#visitTitle').textContent = r.name; $('#waTplBtns').innerHTML = waBtns(r, 'wa');
   { const ok = !!r.phone && isMobileMA(r.phone); $('#waTpl').hidden = !ok; $('#waNote').hidden = ok; }
   $('#visitHist').innerHTML = ''; $('#visitMeta').innerHTML = '';
   $('#dlgVisit').showModal();
@@ -1058,7 +1099,7 @@ window.waPick = id => {
   const r = rows.find(x => x.id === id); if (!r) return;
   if (!r.phone || !isMobileMA(r.phone)) return waNumOpen(id); // no usable mobile number yet: ask for it first
   waPickId = id; const ok = true;
-  $('#waPickTitle').textContent = r.name;
+  $('#waPickTitle').textContent = r.name; $('#waPickBtns').innerHTML = waBtns(r, 'wp');
   $('#waPickSub').textContent = ok ? 'Choisis le message à envoyer :' : '';
   $('#waPickBtns').hidden = !ok; $('#waPickNote').hidden = ok;
   $('#dlgWaPick').showModal();
@@ -1301,9 +1342,11 @@ $('#tabToday').onclick = () => showTab('today'); $('#tabList').onclick = () => s
 
 // ====== Boot ======
 async function reload() {
-  rows = await store.list();
-  try { fus = await store.fuOpen(); } catch { fus = []; }
-  try { visCache = await store.allVisits(); } catch { visCache = []; }
+  allRows = await store.list(); rows = allRows.filter(inSector);
+  const ids = new Set(rows.map(r => r.id));
+  try { fus = (await store.fuOpen()).filter(a => ids.has(a.restaurant_id)); } catch { fus = []; }
+  try { visCache = (await store.allVisits()).filter(v => ids.has(v.restaurant_id)); } catch { visCache = []; }
+  paintSector();
   if (!reload.tpl) { reload.tpl = true; try { applyTpl(await store.tplList()); } catch {} }
   selected = new Set([...selected].filter(id => rows.some(r => r.id === id)));
   renderAll();
@@ -1331,7 +1374,7 @@ async function boot() {
 // ====== Recherche en ligne (OpenStreetMap) ======
 const BBOX = { s: 33.85, w: -7.05, n: 34.12, e: -6.60 }; // Témara · Rabat · Salé
 let sres = [], smode = 'name';
-const isDup = r => { const k = norm(r.name); return rows.some(x => norm(x.name) === k || (x.lat != null && haversine(x, r) < 40 && (norm(x.name).includes(k) || k.includes(norm(x.name))))); };
+const isDup = r => { const k = norm(r.name); return allRows.some(x => norm(x.name) === k || (x.lat != null && haversine(x, r) < 40 && (norm(x.name).includes(k) || k.includes(norm(x.name))))); };
 function fromNom(o) {
   const a = o.address || {}, t = o.extratags || {};
   const district = a.suburb || a.neighbourhood || a.city_district || a.quarter || a.town || a.city || null;
@@ -1342,7 +1385,7 @@ function fromOverpass(e) {
   const t = e.tags || {}; if (!t.name) return null;
   const lat = e.lat ?? e.center?.lat, lng = e.lon ?? e.center?.lon; if (lat == null) return null;
   const district = t['addr:suburb'] || t['addr:city'] || null, street = [t['addr:housenumber'], t['addr:street']].filter(Boolean).join(' ');
-  const kind = t.amenity === 'cafe' ? 'cafe' : t.amenity === 'fast_food' ? 'snack' : (t.amenity === 'ice_cream' || t.shop) ? 'patisserie' : t.amenity === 'restaurant' ? 'restaurant' : null;
+  const kind = /^(dry_cleaning|laundry)$/.test(t.shop || '') ? 'pressing' : /^(hairdresser|beauty)$/.test(t.shop || '') ? 'salon' : t.amenity === 'cafe' ? 'cafe' : t.amenity === 'fast_food' ? 'snack' : (t.amenity === 'ice_cream' || t.shop) ? 'patisserie' : t.amenity === 'restaurant' ? 'restaurant' : null;
   return { name: t.name, district, address: [street, district].filter(Boolean).join(', ') || null, phone: t.phone || t['contact:phone'] || null, website: t.website || t['contact:website'] || null, lat, lng, kind };
 }
 function renderSearch() {
@@ -1365,8 +1408,10 @@ async function doNameSearch() {
   } catch { $('#sinfo').textContent = 'Service indisponible, réessayez.'; }
 }
 async function doAreaSearch() {
-  smode = 'area'; $('#sinfo').textContent = 'Chargement des restaurants…'; $('#sres').hidden = true;
-  const bb = `(${BBOX.s},${BBOX.w},${BBOX.n},${BBOX.e})`, ql = `[out:json][timeout:90];(nwr["amenity"~"^(restaurant|fast_food|cafe|ice_cream|food_court)$"]${bb};nwr["shop"~"^(bakery|pastry|confectionery|chocolate)$"]${bb};);out center tags;`;
+  smode = 'area'; $('#sinfo').textContent = tx('Chargement…', 'Laden…'); $('#sres').hidden = true;
+  const bb = `(${BBOX.s},${BBOX.w},${BBOX.n},${BBOX.e})`, ql = sector === 'pressing' ? `[out:json][timeout:90];(nwr["shop"~"^(dry_cleaning|laundry)$"]${bb};);out center tags;`
+    : sector === 'salon' ? `[out:json][timeout:90];(nwr["shop"~"^(hairdresser|beauty)$"]${bb};);out center tags;`
+    : `[out:json][timeout:90];(nwr["amenity"~"^(restaurant|fast_food|cafe|ice_cream|food_court)$"]${bb};nwr["shop"~"^(bakery|pastry|confectionery|chocolate)$"]${bb};);out center tags;`;
   for (const host of ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter']) {
     try {
       const j = await (await fetch(host, { method: 'POST', body: 'data=' + encodeURIComponent(ql) })).json();
@@ -1377,7 +1422,7 @@ async function doAreaSearch() {
   }
   $('#sinfo').textContent = 'Service indisponible, réessayez.';
 }
-const toRow = r => ({ id: uid(), name: r.name, district: r.district, address: r.address, phone: r.phone, lat: r.lat, lng: r.lng, status: 'new', kind: r.kind || null, website_status: r.website ? 'yes' : 'unknown' });
+const toRow = r => ({ id: uid(), name: r.name, district: r.district, address: r.address, phone: r.phone, lat: r.lat, lng: r.lng, status: 'new', kind: r.kind || (sector === 'pressing' || sector === 'salon' ? sector : null), website_status: r.website ? 'yes' : 'unknown' });
 $('#btnOnline').onclick = () => openSearch($('#q').value);
 $('#btnSq').onclick = doNameSearch;
 $('#sq').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); smode === 'area' && sres.length ? renderSearch() : doNameSearch(); } });
@@ -1476,7 +1521,7 @@ function planDay() {
       .slice(0, Math.max(1, Math.ceil(n / 2))).forEach(r => picks.length < n && picks.push({ r, due: true }));
   }
   // 2) never visited, inside the radius; close together first, score breaks ties
-  const ok = r => !r.last_visit_at && r.status === 'new' && inReg(r) && near(r) && (!day.newOnly || leadScore(r) >= HI);
+  const ok = r => !r.last_visit_at && r.status === 'new' && inReg(r) && near(r) && (!day.newOnly || sectorOf(r) !== 'horeca' || leadScore(r) >= HI);
   let pool = live.filter(r => !has(r) && ok(r));
   const poolSize = pool.length;
   while (picks.length < n && pool.length) {
@@ -1495,6 +1540,8 @@ function planDay() {
 }
 function tipFor(r) {
   if (['interested', 'appt', 'demo', 'trial'].includes(r.status)) return 'Reprenez où vous en étiez.';
+  if (sectorOf(r) === 'pressing') return tx('Pressing : demandez combien de vêtements ne sont jamais récupérés, et combien d’appels « c’est prêt ? » ils reçoivent.', 'Pressing: vraag hoeveel kleding nooit wordt opgehaald en hoe vaak klanten bellen of het klaar is.');
+  if (sectorOf(r) === 'salon') return tx('Salon : demandez combien de clientes ne viennent pas à leur rendez-vous, et comment elles réservent aujourd’hui.', 'Salon: vraag hoeveel klanten niet komen opdagen en hoe ze nu afspraken maken.');
   if (r.website_status === 'no') return 'Pas de site : proposez Amplify Site (dès 250 DH).';
   if ((r.g_reviews || 0) >= 100) return 'Beaucoup d’avis, donc du passage : parlez marges et caisse (POS dès 199 DH/mois).';
   return 'Premier contact : demandez comment ils suivent leurs marges aujourd’hui.';
@@ -1504,7 +1551,7 @@ const BIL_F = [['went_well', 'Qu’est-ce qui s’est bien passé ?'], ['went_ba
 let bil = { open: false, loaded: false, date: null, f: {}, auto: null, recent: [], err: '' }, whoCache = null;
 async function whoAmI() { if (whoCache) return whoCache; let by = 'moi'; if (sb) { const { data } = await sb.auth.getSession(); by = (data.session?.user?.email || '').split('@')[0] || 'moi'; } return whoCache = by; }
 async function bilAuto(date) { // same source as « Chiffres » : the visits table; one visit = one row
-  const vs = (await store.allVisits()).filter(v => new Date(v.created_at).toLocaleDateString('sv-SE') === date);
+  const vs = (await store.allVisits()).filter(v => new Date(v.created_at).toLocaleDateString('sv-SE') === date && rows.some(r => r.id === v.restaurant_id));
   const a = new Date(date + 'T00:00:00'); let done = 0;
   try { done = (await store.fuDoneBetween(a.toISOString(), new Date(a.getTime() + 864e5).toISOString())).length; } catch {}
   return { visits: vs.length, talks: vs.filter(v => TALK.includes(v.outcome)).length, interested: vs.filter(v => v.outcome === 'interested').length, appts: vs.filter(v => v.outcome === 'appt').length, done, open: fus.length, late: fus.filter(x => x.due_date < todayLocal()).length };
@@ -1620,7 +1667,7 @@ function renderToday() {
     const v = r.g_reviews, late = due && r.next_contact < today;
     const why = due ? `Relance prévue le ${fmtD(r.next_contact)}${late ? ' (en retard)' : ''}${r.next_step ? ' : ' + esc(r.next_step) : ''}`
       : `Score ${leadScore(r) ?? '—'}${r.website_status === 'no' ? ' · pas de site' : ''}${v ? ' · ' + v + ' avis' : ''}${r.last_visit_at ? '' : ' · jamais visité'}`;
-    return `<li class="stop${due ? ' fu' : ''}${late ? ' late' : ''}"><span class="num">${i + 1}</span><div><b>${esc(r.name)}${extra ? `<span class="tag">${tx('ajouté', 'toegevoegd')}</span>` : ''}</b><div class="leg ${late ? 'late' : ''}">${esc(r.district || '')}${r.district ? ' · ' : ''}${why}${r.lat == null || isApprox(r) ? ' · ' + tx('position approximative', 'positie bij benadering') : ''}</div><div class="tip">${tipFor(r)}</div><div class="acts"><button class="btn sm" onclick="navTo('${r.id}')">${tx('Itinéraire', 'Navigeer')}</button><button class="btn sm" onclick="waPick('${r.id}')">WhatsApp</button><button class="btn sm go" onclick="openVisit('${r.id}')">Visite</button><button class="btn sm" data-px="${r.id}" aria-label="${tx('Retirer', 'Weghalen')}">✕</button></div></div></li>`;
+    return `<li class="stop${due ? ' fu' : ''}${late ? ' late' : ''}"><span class="num">${i + 1}</span><div><b>${esc(r.name)}${sTag(r)}${extra ? `<span class="tag">${tx('ajouté', 'toegevoegd')}</span>` : ''}</b><div class="leg ${late ? 'late' : ''}">${esc(r.district || '')}${r.district ? ' · ' : ''}${why}${r.lat == null || isApprox(r) ? ' · ' + tx('position approximative', 'positie bij benadering') : ''}</div><div class="tip">${tipFor(r)}</div><div class="acts"><button class="btn sm" onclick="navTo('${r.id}')">${tx('Itinéraire', 'Navigeer')}</button><button class="btn sm" onclick="waPick('${r.id}')">WhatsApp</button><button class="btn sm go" onclick="openVisit('${r.id}')">Visite</button><button class="btn sm" data-px="${r.id}" aria-label="${tx('Retirer', 'Weghalen')}">✕</button></div></div></li>`;
   }).join('')}${day.loop ? `<li class="stop"><span class="num start">D</span><div><b>${tx('Retour au départ', 'Terug naar start')}</b></div></li>` : ''}</ol>${P.items.length < day.n ? `<div class="empty">Plus de restaurants ne correspondent pas aux filtres${missing ? ' (certains n’ont pas encore de position)' : ''}. ${tx('Agrandis le rayon, change le départ ou choisis une région.', 'Vergroot de straal, verander je start of kies een regio.')}</div>` : ''}`
   : `<div class="empty">${rows.length ? tx('Aucun restaurant dans ce rayon. Agrandis le rayon, change le départ ou désactive « nouveaux et fort potentiel ».', 'Geen restaurants binnen deze straal. Vergroot de straal, verander je start of zet “alleen nieuwe en hoge potentie” uit.') + (missing ? ' ' + tx('Ou cherche les positions manquantes.', 'Of zoek de ontbrekende posities op.') : '') : 'Ajoutez des restaurants avec une position (liste, import ou recherche en ligne) pour recevoir un conseil.'}</div>`;
   el.innerHTML = `${strip}
@@ -1777,7 +1824,7 @@ function renderOverview() {
 }
 let statP = '7';
 async function renderStats() {
-  const el = $('#stats'); let vs = visCache; try { vs = visCache = await store.allVisits(); } catch {}
+  const el = $('#stats'); let vs = visCache; try { vs = visCache = (await store.allVisits()).filter(v => rows.some(r => r.id === v.restaurant_id)); } catch {}
   const bars = (items, max) => items.map(([t, n, c]) => `<div class="brow"><span>${esc(t)}${c ? '' : ''}</span><div class="bar"><i style="width:${max ? Math.round(n / max * 100) : 0}%"></i></div><b>${n}</b></div>`).join('');
   const POS = ['interested', 'appt', 'demo', 'trial', 'client'], now = Date.now();
   const wkStart = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return x.getTime(); };
@@ -1917,7 +1964,7 @@ Object.assign(D, {'Point de départ':'Startpunt','Adresse ou quartier':'Adres of
 FRAG.push([/^(\d+) suivis en retard$/,'$1 acties te laat'],[/(\d+) visites · (\d+) conversations/,'$1 bezoeken · $2 gesprekken'],[/(\d+ %|—) des visites/,'$1 van de bezoeken'],[/(\d+ %|—) des restaurants visités/,'$1 van de bezochte restaurants'],[/^Définitions : .*$/s,'Definities: een gesprek is het resultaat “Met manager gesproken”, “Gesproken met baas”, “Intéressé”, “RDV pris” of “Pas intéressé”. Percentages delen door het aantal bezoeken; “klant geworden” deelt door het aantal verschillende restaurants dat in de periode is bezocht (huidige status). Een restaurant dat twee keer is bezocht telt als twee bezoeken, maar één keer als restaurant.'],[/^(\d+) visites$/,'$1 bezoeken'],[/^(\d+) conversations$/,'$1 gesprekken'],[/^(\d+) intéressés$/,'$1 geïnteresseerd'],[/^(\d+) RDV pris$/,'$1 afspraken gemaakt'],[/^(\d+) suivis terminés$/,'$1 acties afgerond'],[/^(\d+) suivis ouverts$/,'$1 openstaande acties'],[/position approximative/g,'positie bij benadering'],[/(\d+) positions trouvées, (\d+) approximatives\./,'$1 posities gevonden, $2 bij benadering.'],[/^Départ : (?=.)/,'Start: '],[/^Chercher les positions manquantes \((\d+)\)/,'Ontbrekende posities opzoeken ($1)'],[/(\d+) arrêts · /,'$1 stops · '],[/(\d+) positions trouvées, (\d+) introuvables\./,'$1 posities gevonden, $2 niet gevonden.'],[/Plus de restaurants ne correspondent pas aux filtres/,'Er zijn geen restaurants meer die aan de filters voldoen'],[/ \(certains n’ont pas encore de position\)/,' (sommige hebben nog geen positie)'],[/Essayez une autre région ou désactivez « nouveaux et fort potentiel »\./,'Probeer een andere regio of zet “alleen nieuwe en hoge potentie” uit.'],[/Aucun restaurant ne correspond\. Essayez une autre région, désactivez « nouveaux et fort potentiel »/,'Geen enkel restaurant past. Probeer een andere regio, zet “alleen nieuwe en hoge potentie” uit'],[/ ou cherchez les positions manquantes\./,' of zoek de ontbrekende posities op.'],[/Déplacez le repère D sur la carte, puis revenez sur Aujourd’hui\./,'Sleep de pin D op de kaart en ga dan terug naar Vandaag.']);
 Object.assign(D, {'Ce qui a été dit, ce qui l’intéresse, objections…':'Wat er gezegd is, waar ze interesse in hebben, bezwaren…','Ex. envoyer la démo, repasser jeudi':'Bijv. demo sturen, donderdag terugkomen','Parlé au patron':'Gesproken met baas','Suivi':'Opvolging','Pas de suivi':'Geen opvolging','Envoyer sur WhatsApp':'Stuur via WhatsApp','Itinéraire':'Navigeer','Je suis sur place : noter la visite tout de suite':'Ik sta er nu: bezoek meteen vastleggen'});
 Object.assign(D, {'Position':'Locatie','Détails':'Details','Numéro WhatsApp':'WhatsApp-nummer','Enregistrer et ouvrir WhatsApp':'Opslaan en WhatsApp openen','Ajouter un numéro WhatsApp':'WhatsApp-nummer toevoegen','Pas de numéro mobile valide : pas de modèles WhatsApp.':'Geen geldig mobiel nummer: geen WhatsApp-berichten.','Ce numéro est fixe ou non reconnu. Entre un numéro mobile : 06…, 07… ou +212…':'Dit nummer is een vast nummer of wordt niet herkend. Vul een mobiel nummer in: 06…, 07… of +212…','Pas encore de numéro pour ce restaurant. Entre un numéro mobile : 06…, 07… ou +212…':'Nog geen nummer voor dit restaurant. Vul een mobiel nummer in: 06…, 07… of +212…','Numéro enregistré.':'Nummer opgeslagen.','Numéro invalide : mobile marocain en 06…, 07… ou +212…':'Ongeldig nummer: Marokkaans mobiel nummer met 06…, 07… of +212…'});
-Object.assign(D, {'Numéro enregistré.':'Nummer opgeslagen.','Ces textes sont partagés avec toute l’équipe.':'Deze teksten worden met het hele team gedeeld.'});
+Object.assign(D, {'Type / secteur':'Type / sector','Horeca':'Horeca','Tout':'Alles','Salon':'Salon','Pressing':'Pressing','Numéro enregistré.':'Nummer opgeslagen.','Ces textes sont partagés avec toute l’équipe.':'Deze teksten worden met het hele team gedeeld.'});
 setLang(lang);
 showTab('today');
 
