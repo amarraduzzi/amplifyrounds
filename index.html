@@ -1197,7 +1197,7 @@ $('#fImport').addEventListener('submit', async () => {
   if (col.name < 0) return toast('Colonne « name » introuvable.', 4500);
   const get = (r, k) => col[k] >= 0 ? (r[col[k]] || '').trim() : '';
 const nz = v => { const x = parseFloat(String(v).replace(',', '.')); return isNaN(x) ? null : x; };
-const extra = r => ({ g_rating: nz(get(r, 'rating')), g_reviews: nz(get(r, 'reviews')) == null ? null : Math.round(nz(get(r, 'reviews'))), website_status: ['yes', 'no', 'unknown'].includes(get(r, 'wstatus').toLowerCase()) ? get(r, 'wstatus').toLowerCase() : (get(r, 'website') ? 'yes' : (col.website >= 0 ? 'no' : 'unknown')), kind: ['restaurant', 'cafe', 'snack', 'patisserie'].includes(get(r, 'kind').toLowerCase()) ? get(r, 'kind').toLowerCase() : null });
+const extra = r => ({ g_rating: nz(get(r, 'rating')), g_reviews: nz(get(r, 'reviews')) == null ? null : Math.round(nz(get(r, 'reviews'))), website_status: ['yes', 'no', 'unknown'].includes(get(r, 'wstatus').toLowerCase()) ? get(r, 'wstatus').toLowerCase() : (get(r, 'website') ? 'yes' : (col.website >= 0 ? 'no' : 'unknown')), kind: ['restaurant', 'cafe', 'snack', 'patisserie', 'pressing', 'salon'].includes(get(r, 'kind').toLowerCase()) ? get(r, 'kind').toLowerCase() : (sector === 'pressing' || sector === 'salon' ? sector : null) });
   const allItems = table.slice(1).map(r => {
     let lat = parseFloat(get(r, 'lat').replace(',', '.')), lng = parseFloat(get(r, 'lng').replace(',', '.'));
     if (isNaN(lat) || isNaN(lng)) { const p = parseMapsLink(get(r, 'maps')); lat = p?.lat ?? null; lng = p?.lng ?? null; }

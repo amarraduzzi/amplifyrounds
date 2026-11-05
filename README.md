@@ -112,3 +112,7 @@ No SQL needed (uses the existing `kind` column: 'pressing' or 'salon'; everythin
 - WhatsApp: Horeca keeps Manager + Boss and Glovo message; Pressing and Salon each get their own message (editable in WhatsApp-berichten).
 - The "only new and high potential" filter applies to Horeca only, since the score is built for restaurants.
 - In "Tout", pressings have a blue ring on the map and salons a pink one, with a label in the lists.
+
+## Update 31: importeren per sector
+
+No SQL needed. CSV import accepts kind "pressing" and "salon"; without a kind column, rows imported in the Pressing or Salon view get that sector.
