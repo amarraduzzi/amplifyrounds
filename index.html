@@ -664,7 +664,7 @@ const store = {
     return ls('at_fu', '[]').filter(x => x.status === 'open');
   },
   async fuDoneBetween(a, b) {
-    if (sb) { const { data, error } = await sb.from('followups').select('id').eq('status', 'done').gte('done_at', a).lt('done_at', b); if (error) throw error; return data; }
+    if (sb) { const { data, error } = await sb.from('followups').select('id, restaurant_id').eq('status', 'done').gte('done_at', a).lt('done_at', b); if (error) throw error; return data; }
     return ls('at_fu', '[]').filter(x => x.status === 'done' && x.done_at >= a && x.done_at < b);
   },
   async bilanGet(date, who) {
@@ -1553,7 +1553,7 @@ async function whoAmI() { if (whoCache) return whoCache; let by = 'moi'; if (sb)
 async function bilAuto(date) { // same source as « Chiffres » : the visits table; one visit = one row
   const vs = (await store.allVisits()).filter(v => new Date(v.created_at).toLocaleDateString('sv-SE') === date && rows.some(r => r.id === v.restaurant_id));
   const a = new Date(date + 'T00:00:00'); let done = 0;
-  try { done = (await store.fuDoneBetween(a.toISOString(), new Date(a.getTime() + 864e5).toISOString())).length; } catch {}
+  try { done = (await store.fuDoneBetween(a.toISOString(), new Date(a.getTime() + 864e5).toISOString())).filter(x => rows.some(r => r.id === x.restaurant_id)).length; } catch {}
   return { visits: vs.length, talks: vs.filter(v => TALK.includes(v.outcome)).length, interested: vs.filter(v => v.outcome === 'interested').length, appts: vs.filter(v => v.outcome === 'appt').length, done, open: fus.length, late: fus.filter(x => x.due_date < todayLocal()).length };
 }
 function bilanSection() {
@@ -1824,6 +1824,7 @@ function renderOverview() {
 }
 let statP = '7';
 async function renderStats() {
+  const H = sector === 'horeca', RL = H ? 'Restaurants' : tx('Commerces', 'Zaken');
   const el = $('#stats'); let vs = visCache; try { vs = visCache = (await store.allVisits()).filter(v => rows.some(r => r.id === v.restaurant_id)); } catch {}
   const bars = (items, max) => items.map(([t, n, c]) => `<div class="brow"><span>${esc(t)}${c ? '' : ''}</span><div class="bar"><i style="width:${max ? Math.round(n / max * 100) : 0}%"></i></div><b>${n}</b></div>`).join('');
   const POS = ['interested', 'appt', 'demo', 'trial', 'client'], now = Date.now();
@@ -1841,7 +1842,7 @@ async function renderStats() {
   // ---- Analyse de la période (nouveau ; les blocs ci-dessous restent inchangés) ----
   const nP = statP === 'all' ? null : +statP, since = nP ? new Date(new Date().setHours(0, 0, 0, 0) - (nP - 1) * 864e5) : new Date(0);
   const pv = vs.filter(v => new Date(v.created_at) >= since), uniq = new Set(pv.map(v => v.restaurant_id)), todayS = todayLocal();
-  let doneN = 0; try { doneN = (await store.fuDoneBetween(since.toISOString(), new Date(Date.now() + 864e5).toISOString())).length; } catch {}
+  let doneN = 0; try { doneN = (await store.fuDoneBetween(since.toISOString(), new Date(Date.now() + 864e5).toISOString())).filter(a => rows.some(r => r.id === a.restaurant_id)).length; } catch {}
   const oc = k => pv.filter(v => v.outcome === k).length, talks = pv.filter(v => TALK.includes(v.outcome)).length;
   const pct = (a, b) => b ? Math.round(a / b * 100) + ' %' : '—', lateN = fus.filter(a => a.due_date < todayS).length;
   const clientsN = rows.filter(r => uniq.has(r.id) && r.status === 'client').length;
@@ -1853,18 +1854,18 @@ async function renderStats() {
   const seg2 = [['1', 'Aujourd’hui'], ['7', '7 jours'], ['30', '30 jours'], ['all', 'Tout']].map(([v, t]) => `<button type="button" data-sp="${v}" class="${v === statP ? 'on' : ''}" aria-pressed="${v === statP}">${t}</button>`).join('');
   const oB = cnt2('outcome', OUTP), bB = cnt2('objection', OBJP);
   const periodBlock = `<div class="blk"><h3>Analyse de la période</h3><div class="seg" style="margin-bottom:8px">${seg2}</div>` +
-    ln('Visites', pv.length) + ln('Restaurants différents visités', uniq.size) +
-    ln('Conversations avec le gérant', talks, pct(talks, pv.length) + ' ' + 'des visites') + ln('Intéressés', oc('interested'), pct(oc('interested'), pv.length) + ' ' + 'des visites') +
+    ln('Visites', pv.length) + ln(H ? 'Restaurants différents visités' : tx('Commerces différents visités', 'Verschillende zaken bezocht'), uniq.size) +
+    ln(H ? 'Conversations avec le gérant' : tx('Conversations', 'Gesprekken'), talks, pct(talks, pv.length) + ' ' + 'des visites') + ln('Intéressés', oc('interested'), pct(oc('interested'), pv.length) + ' ' + 'des visites') +
     ln('RDV pris', oc('appt'), pct(oc('appt'), pv.length) + ' ' + 'des visites') + ln('Pas intéressés', oc('no')) +
     ln('Suivis terminés', doneN) + ln('Suivis en retard (maintenant)', lateN) +
-    ln('Devenus clients', clientsN, pct(clientsN, uniq.size) + ' ' + 'des restaurants visités') +
+    ln('Devenus clients', clientsN, pct(clientsN, uniq.size) + ' ' + (H ? 'des restaurants visités' : tx('des commerces visités', 'van de bezochte zaken'))) +
     `<div class="hist" style="margin-top:6px">Définitions : conversation = résultat « Parlé au gérant », « Parlé au patron », « Intéressé », « RDV pris » ou « Pas intéressé ». Les pourcentages divisent par le nombre de visites ; « devenus clients » divise par les restaurants différents visités dans la période (statut actuel). Un restaurant visité deux fois compte pour deux visites mais une seule fois comme restaurant.</div>` +
     (pv.length < 30 ? '<div class="hist">Moins de 30 visites : conclusions provisoires. Un lien statistique ne prouve pas une cause.</div>' : '') +
     (oB.length ? `<h3 style="margin-top:12px">Résultats</h3>` + bars(oB, oB[0][1]) : '') + (bB.length ? `<h3 style="margin-top:12px">Objections (période)</h3>` + bars(bB, bB[0][1]) : '') +
     (nP !== 1 && wd.length ? `<h3 style="margin-top:12px">Par jour de la semaine</h3>` + wd.map(([d, n, t]) => `<div class="brow" style="grid-template-columns:1fr auto"><span>${d}</span><span>${n} visites · ${t} conversations</span></div>`).join('') : '') +
     (noFu.length ? `<h3 style="margin-top:12px">Prospects sans suivi</h3><div class="hist">${noFu.slice(0, 8).map(r => esc(r.name)).join(', ')}${noFu.length > 8 ? ' +' + (noFu.length - 8) : ''}</div>` : '') + '</div>' +
-    (pv.length ? `<div class="blk"><h3>${tx('Restaurants visités dans la période', 'Bezochte restaurants in deze periode')} (${uniq.size})</h3>${visitListHtml(pv.slice(0, 400), true)}${pv.length > 400 ? `<div class="hist">${tx('Seules les 400 dernières visites sont affichées.', 'Alleen de laatste 400 bezoeken worden getoond.')}</div>` : ''}</div>` : '');
-  el.innerHTML = `<div class="kpis"><div class="kpi"><b>${rows.length}</b>Restaurants</div><div class="kpi"><b>${visited}</b>Visités</div><div class="kpi"><b>${wk[5][1]}</b>Visites (cette semaine)</div></div>` + periodBlock +
+    (pv.length ? `<div class="blk"><h3>${H ? tx('Restaurants visités dans la période', 'Bezochte restaurants in deze periode') : tx('Commerces visités dans la période', 'Bezochte zaken in deze periode')} (${uniq.size})</h3>${visitListHtml(pv.slice(0, 400), true)}${pv.length > 400 ? `<div class="hist">${tx('Seules les 400 dernières visites sont affichées.', 'Alleen de laatste 400 bezoeken worden getoond.')}</div>` : ''}</div>` : '');
+  el.innerHTML = `<div class="kpis"><div class="kpi"><b>${rows.length}</b>${RL}</div><div class="kpi"><b>${visited}</b>Visités</div><div class="kpi"><b>${wk[5][1]}</b>Visites (cette semaine)</div></div>` + periodBlock +
     sec('Entonnoir', bars(st, Math.max(1, ...st.map(x => x[1])))) +
     sec('Visites par semaine', bars(wk, Math.max(1, ...wk.map(x => x[1])))) +
     (Object.keys(who).length ? sec('Par personne (30 jours)', bars(Object.entries(who), Math.max(...Object.values(who)))) : '') +

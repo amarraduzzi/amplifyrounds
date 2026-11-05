@@ -116,3 +116,7 @@ No SQL needed (uses the existing `kind` column: 'pressing' or 'salon'; everythin
 ## Update 31: importeren per sector
 
 No SQL needed. CSV import accepts kind "pressing" and "salon"; without a kind column, rows imported in the Pressing or Salon view get that sector.
+
+## Update 32: cijfers per sector
+
+No SQL needed. In Cijfers, "Afgeronde acties" and the day review only count the sector you are looking at, and labels say "Zaken" instead of "Restaurants" in the Pressing and Salon views.
