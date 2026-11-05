@@ -120,3 +120,7 @@ No SQL needed. CSV import accepts kind "pressing" and "salon"; without a kind co
 ## Update 32: cijfers per sector
 
 No SQL needed. In Cijfers, "Afgeronde acties" and the day review only count the sector you are looking at, and labels say "Zaken" instead of "Restaurants" in the Pressing and Salon views.
+
+## Update 33: import vult meer lege velden aan
+
+No SQL needed. With "update existing" on, a CSV import now also fills an empty phone, address, Google rating, review count and position of businesses already in the list.

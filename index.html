@@ -1215,6 +1215,11 @@ if ($('#csvUpdate').checked) {
     if (!x.last_visit_at && r.last_visit_at) pt.last_visit_at = r.last_visit_at;
     if ((!x.website_status || x.website_status === 'unknown') && r.website_status !== 'unknown') pt.website_status = r.website_status;
     if (!x.district && r.district) pt.district = r.district;
+    if (!x.phone && r.phone) pt.phone = r.phone;
+    if (!x.address && r.address) pt.address = r.address;
+    if (x.g_rating == null && r.g_rating != null) pt.g_rating = r.g_rating;
+    if (x.g_reviews == null && r.g_reviews != null) pt.g_reviews = r.g_reviews;
+    if (x.lat == null && r.lat != null) { pt.lat = r.lat; pt.lng = r.lng; }
     if (Object.keys(pt).length) { try { await store.save({ id: x.id, name: x.name, ...pt }); upd++; } catch {} }
   }
   if (upd) await reload();
