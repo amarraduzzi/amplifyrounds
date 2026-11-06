@@ -719,20 +719,30 @@ let rows = [], fus = [], visCache = [], allRows = [];
 // ---- Secteurs : Horeca (par défaut, comme avant), Pressing, Salon. Chaque secteur est une vue séparée. ----
 const SECT_L = { horeca: 'Horeca', pressing: 'Pressing', salon: 'Salon', all: 'Tout' };
 const sectorOf = r => r && (r.kind === 'pressing' || r.kind === 'salon') ? r.kind : 'horeca';
-let sector = ['horeca', 'pressing', 'salon', 'all'].includes(localStorage.getItem('at_sector')) ? localStorage.getItem('at_sector') : 'horeca';
-const inSector = r => sector === 'all' || sectorOf(r) === sector;
+// Several sectors can be on at once (e.g. Horeca + Pressing = one combined route). `sector` is 'all' as soon as more than one is on.
+const SECTS = ['horeca', 'pressing', 'salon'];
+let sectors = (() => { try { const a = JSON.parse(localStorage.getItem('at_sectors')); if (Array.isArray(a) && a.length && a.every(x => SECTS.includes(x))) return a; } catch {} const o = localStorage.getItem('at_sector'); return o === 'all' ? [...SECTS] : SECTS.includes(o) ? [o] : ['horeca']; })();
+let sector = sectors.length === 1 ? sectors[0] : 'all';
+function setSectors(a) { sectors = SECTS.filter(x => a.includes(x)); if (!sectors.length) sectors = ['horeca']; sector = sectors.length === 1 ? sectors[0] : 'all'; localStorage.setItem('at_sectors', JSON.stringify(sectors)); localStorage.setItem('at_sector', sector); }
+const inSector = r => sectors.includes(sectorOf(r));
+const sectName = () => sectors.length === 3 ? tx('Tout', 'Alles') : sectors.map(x => SECT_L[x]).join(' + ');
 const sTag = r => sector === 'all' && sectorOf(r) !== 'horeca' ? `<span class="stag ${sectorOf(r)}">${SECT_L[sectorOf(r)]}</span>` : '';
 function paintSector() {
   const bar = $('#sectBar'); bar.hidden = false;
-  bar.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.s === sector));
+  bar.querySelectorAll('button').forEach(b => { const on = b.dataset.s === 'all' ? sectors.length === 3 : sectors.includes(b.dataset.s) && sectors.length < 3; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
   const lb = $('#tabList .lb'); if (lb) lb.textContent = sector === 'horeca' ? 'Restaurants' : tx('Commerces', 'Zaken');
   const ba = $('#btnArea'); if (ba) ba.textContent = sector === 'pressing' ? tx('Pressings et laveries de la zone', 'Pressings en wasserettes in de zone') : sector === 'salon' ? tx('Salons de coiffure et de beauté de la zone', 'Kappers en schoonheidssalons in de zone') : tx('Restaurants, cafés et pâtisseries de la zone', D['Restaurants, cafés et pâtisseries de la zone'] || 'Restaurants, cafés et pâtisseries de la zone');
 }
 $('#sectBar').addEventListener('click', async e => {
-  const b = e.target.closest('[data-s]'); if (!b || b.dataset.s === sector) return;
-  sector = b.dataset.s; localStorage.setItem('at_sector', sector);
+  const b = e.target.closest('[data-s]'); if (!b) return;
+  const k = b.dataset.s;
+  // tap = only this sector; tap a second sector = add it to the route (combine); tap an active one in a combination = remove it
+  if (k === 'all') setSectors(SECTS);
+  else if (sectors.length === 3) setSectors([k]);
+  else if (sectors.includes(k)) { if (sectors.length === 1) return; setSectors(sectors.filter(x => x !== k)); }
+  else setSectors([...sectors, k]);
   await reload(); if (!$('#paneStats').hidden) renderStats();
-  toast(tx('Secteur : ', 'Sector: ') + SECT_L[sector]);
+  toast(tx('Route et listes : ', 'Route en lijsten: ') + sectName() + (sectors.length < 3 ? tx('. Touche à nouveau pour retirer un secteur.', '. Tik nog eens om een sector weg te halen.') : ''), 3500);
 });
 let selected = new Set(JSON.parse(localStorage.getItem('at_sel') || '[]'));
 let start = JSON.parse(localStorage.getItem('at_start') || 'null') || { ...DEFAULT_START };
@@ -931,7 +941,7 @@ $('#fEdit').addEventListener('submit', async e => {
   const visitNow = !editingId && $('#hereNow').checked;
   try {
     await store.save(r);
-    if (!inSector(r) && visitNow) { sector = sectorOf(r); localStorage.setItem('at_sector', sector); } // standing there: switch to its sector so the visit can be logged
+    if (!inSector(r) && visitNow) setSectors([...sectors, sectorOf(r)]); // standing there: switch to its sector so the visit can be logged
     await reload();
     toast(inSector(r) ? 'Enregistré.' : tx('Enregistré dans ', 'Opgeslagen onder ') + SECT_L[sectorOf(r)] + tx('. Choisis-le en haut pour le voir.', '. Kies dat bovenaan om het te zien.'), inSector(r) ? 2500 : 5000);
     if (visitNow) openVisit(r.id);
@@ -1532,7 +1542,13 @@ function planDay() {
   while (picks.length < n && pool.length) {
     const pts = [anchor, ...picks.filter(p => p.r.lat != null).map(p => p.r)], c = { lat: pts.reduce((s, x) => s + +x.lat, 0) / pts.length, lng: pts.reduce((s, x) => s + +x.lng, 0) / pts.length };
     let best = null, bv = -1e9;
-    for (const r of pool) { const v = (leadScore(r) ?? 0) - 20 * haversine(c, r) / 1000; if (v > bv) { bv = v; best = r; } }
+    // Combined route: scores of different sectors are not comparable, so distance decides and each sector gets a fair share.
+    const mix = sectors.length > 1, secIn = mix ? new Set(pool.map(sectorOf).concat(picks.map(p => sectorOf(p.r)))) : null, cnt = {};
+    if (mix) picks.forEach(p => { const k = sectorOf(p.r); cnt[k] = (cnt[k] || 0) + 1; });
+    for (const r of pool) {
+      const k = sectorOf(r), sc = mix ? 0.05 * Math.min(leadScore(r) ?? 40, 80) - 6 * Math.max(0, (cnt[k] || 0) + 1 - (picks.length + 1) / secIn.size) : (leadScore(r) ?? 0);
+      const v = sc - 20 * haversine(c, r) / 1000; if (v > bv) { bv = v; best = r; }
+    }
     picks.push({ r: best, due: false }); pool = pool.filter(x => x !== best);
   }
   if (!picks.length) return { items: [], dist: 0, dur: 0, poolSize, moved: anchor !== start };
@@ -1681,6 +1697,7 @@ ${fuSection()}
 <div class="find"><input id="dAddr" type="search" aria-label="Adresse ou quartier" placeholder="Adresse ou quartier" value="${esc(day.addr)}"><button class="btn" id="dFind" type="button">Chercher</button></div>
 <div id="dSug" class="sug"></div>
 <div class="from">${pinSvg}<span class="fl">${sl ? 'Départ : ' + esc(sl) : 'Départ : repère sur la carte (Agdal par défaut)'}</span><span class="lks"><button class="lk" id="dGeo" type="button">Ma position</button><a href="#" class="lk" id="dPin">Déplacer sur la carte</a></span></div>
+<div class="hist" style="margin:0">${tx('Dans la route : ', 'In de route: ')}<b>${esc(sectName())}</b>${tx(' (change en haut : touche plusieurs secteurs pour les combiner)', ' (wijzig bovenaan: tik meerdere sectoren aan om ze te combineren)')}</div>
 <label><div class="lbl">Région</div><select id="dRegion"><option value="">Peu importe, le plus proche du départ</option>${regs.map(o => `<option value="${esc(o.k)}" ${o.k === day.region ? 'selected' : ''}>${esc(o.label)} (${o.n})</option>`).join('')}</select></label>
 <div class="two2"><div><div class="lbl">Nombre d’arrêts</div><div class="seg" id="dN">${seg('n', [6, 8, 12, 16].map(h => [h, h]), day.n)}</div></div>
 <div><div class="lbl">Déplacement</div><div class="seg" id="dMode">${seg('m', [['walk', 'À pied'], ['car', 'En voiture']], day.mode)}</div></div>

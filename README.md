@@ -124,3 +124,7 @@ No SQL needed. In Cijfers, "Afgeronde acties" and the day review only count the 
 ## Update 33: import vult meer lege velden aan
 
 No SQL needed. With "update existing" on, a CSV import now also fills an empty phone, address, Google rating, review count and position of businesses already in the list.
+
+## Update 34: sectoren combineren in één route
+
+No SQL needed. The sector bar is now multi-choice: tap a second sector to add it (for example Horeca + Pressing = one combined route), tap an active one to remove it, "Tout" = everything. Lists, map, figures and the Vandaag plan follow the choice. In a combined route distance decides and each sector gets a fair share of the stops; the planner card shows which sectors are in the route.
